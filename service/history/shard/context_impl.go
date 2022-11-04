@@ -429,6 +429,10 @@ func (s *ContextImpl) UpdateQueueClusterAckLevel(
 			ClusterAckLevel: make(map[string]int64),
 		}
 	}
+	// Somehow, during cell initialization, we can get nil ClusterAckLevels.
+	if s.shardInfo.QueueAckLevels[category.ID()].ClusterAckLevel == nil {
+		s.shardInfo.QueueAckLevels[category.ID()].ClusterAckLevel = make(map[string]int64)
+	}
 	s.shardInfo.QueueAckLevels[category.ID()].ClusterAckLevel[cluster] = convertTaskKeyToPersistenceAckLevel(category.Type(), ackLevel)
 
 	s.shardInfo.StolenSinceRenew = 0
