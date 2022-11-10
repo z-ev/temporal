@@ -75,6 +75,7 @@ import (
 	"go.temporal.io/server/common/persistence/visibility/manager"
 	"go.temporal.io/server/common/primitives"
 	"go.temporal.io/server/common/primitives/timestamp"
+	"go.temporal.io/server/common/quotas"
 	"go.temporal.io/server/common/rpc/interceptor"
 	"go.temporal.io/server/common/sdk"
 	"go.temporal.io/server/common/searchattribute"
@@ -98,6 +99,9 @@ type (
 	// WorkflowHandler - gRPC handler interface for workflowservice
 	WorkflowHandler struct {
 		status int32
+
+		signalRateLimiter          quotas.RateLimiter
+		signalWithStartRateLimiter quotas.RateLimiter
 
 		tokenSerializer                 common.TaskTokenSerializer
 		config                          *Config
@@ -146,6 +150,21 @@ func NewWorkflowHandler(
 ) *WorkflowHandler {
 
 	handler := &WorkflowHandler{
+		signalRateLimiter: quotas.NewDynamicRateLimiter(quotas.NewRateBurst(
+			func() float64 {
+				return float64(config.FrontendSignalRPSPerInstance())
+			}, func() int {
+				return config.FrontendSignalRPSPerInstance()
+			},
+		), time.Minute),
+		signalWithStartRateLimiter: quotas.NewDynamicRateLimiter(quotas.NewRateBurst(
+			func() float64 {
+				return float64(config.FrontendSignalWithStartRPSPerInstance())
+			}, func() int {
+				return config.FrontendSignalWithStartRPSPerInstance()
+			},
+		), time.Minute),
+
 		status:          common.DaemonStatusInitialized,
 		config:          config,
 		tokenSerializer: common.NewProtoTaskTokenSerializer(),
@@ -1897,6 +1916,12 @@ func (wh *WorkflowHandler) SignalWorkflowExecution(ctx context.Context, request 
 		return nil, errRequestNotSet
 	}
 
+	if strings.Contains(request.GetNamespace(), "gameday") {
+		if !wh.signalRateLimiter.Allow() {
+			return nil, serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_RPS_LIMIT, "SignalWorkflowExecution rate limit exceeded")
+		}
+	}
+
 	if err := validateExecution(request.WorkflowExecution); err != nil {
 		return nil, err
 	}
@@ -1959,6 +1984,12 @@ func (wh *WorkflowHandler) SignalWithStartWorkflowExecution(ctx context.Context,
 
 	if request == nil {
 		return nil, errRequestNotSet
+	}
+
+	if strings.Contains(request.GetNamespace(), "gameday") {
+		if !wh.signalWithStartRateLimiter.Allow() {
+			return nil, serviceerror.NewResourceExhausted(enumspb.RESOURCE_EXHAUSTED_CAUSE_RPS_LIMIT, "SignalWithStartWorkflowExecution rate limit exceeded")
+		}
 	}
 
 	if err := wh.validateWorkflowID(request.GetWorkflowId()); err != nil {
