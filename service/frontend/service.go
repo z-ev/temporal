@@ -71,9 +71,6 @@ type Config struct {
 	ESIndexMaxResultWindow                    dynamicconfig.IntPropertyFn
 	VisibilityDisableOrderByClause            dynamicconfig.BoolPropertyFn
 
-	FrontendSignalRPSPerInstance          dynamicconfig.IntPropertyFn
-	FrontendSignalWithStartRPSPerInstance dynamicconfig.IntPropertyFn
-
 	HistoryMaxPageSize                     dynamicconfig.IntPropertyFnWithNamespaceFilter
 	RPS                                    dynamicconfig.IntPropertyFn
 	MaxNamespaceRPSPerInstance             dynamicconfig.IntPropertyFnWithNamespaceFilter
@@ -187,9 +184,6 @@ func NewConfig(dc *dynamicconfig.Collection, numHistoryShards int32, esIndexName
 		EnableReadFromSecondaryAdvancedVisibility: dc.GetBoolPropertyFnWithNamespaceFilter(dynamicconfig.EnableReadFromSecondaryAdvancedVisibility, false),
 		ESIndexMaxResultWindow:                    dc.GetIntProperty(dynamicconfig.FrontendESIndexMaxResultWindow, 10000),
 		VisibilityDisableOrderByClause:            dc.GetBoolProperty(dynamicconfig.VisibilityDisableOrderByClause, false),
-
-		FrontendSignalRPSPerInstance:          dc.GetIntProperty(dynamicconfig.FrontendSignalRPSPerInstance, 10000000),
-		FrontendSignalWithStartRPSPerInstance: dc.GetIntProperty(dynamicconfig.FrontendSignalWithStartRPSPerInstance, 10000000),
 
 		HistoryMaxPageSize:                     dc.GetIntPropertyFilteredByNamespace(dynamicconfig.FrontendHistoryMaxPageSize, common.GetHistoryMaxPageSize),
 		RPS:                                    dc.GetIntProperty(dynamicconfig.FrontendRPS, 2400),

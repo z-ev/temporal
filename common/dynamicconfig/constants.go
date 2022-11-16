@@ -122,11 +122,6 @@ const (
 
 	// keys for frontend
 
-	// FrontendSignalRPSPerInstance is workflow namespace rate limit per second
-	FrontendSignalRPSPerInstance = "frontend.admin.signalRPS"
-	// FrontendSignalWithStartRPSPerInstance is workflow namespace rate limit per second
-	FrontendSignalWithStartRPSPerInstance = "frontend.admin.signalWithStartRPS"
-
 	// FrontendPersistenceMaxQPS is the max qps frontend host can query DB
 	FrontendPersistenceMaxQPS = "frontend.persistenceMaxQPS"
 	// FrontendPersistenceGlobalMaxQPS is the max qps frontend cluster can query DB
