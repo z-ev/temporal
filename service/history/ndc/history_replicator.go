@@ -263,24 +263,6 @@ func (r *HistoryReplicatorImpl) ApplyWorkflowState(
 		return err
 	}
 
-	// Interim logic to re-create branch token base on the target cluster metadata while preserving branch info.
-	historyBranchResp, err := r.shard.GetExecutionManager().ParseHistoryBranchInfo(ctx, &persistence.ParseHistoryBranchInfoRequest{BranchToken: currentVersionHistory.GetBranchToken()})
-	if err != nil {
-		return err
-	}
-	newBranchToken, err := r.shard.GetExecutionManager().NewHistoryBranch(ctx, &persistence.NewHistoryBranchRequest{
-		TreeID: historyBranchResp.BranchInfo.GetTreeId(),
-	})
-	if err != nil {
-		return err
-	}
-	mergedBranchToken, err := r.shard.GetExecutionManager().UpdateHistoryBranchInfo(ctx, &persistence.UpdateHistoryBranchInfoRequest{
-		BranchToken: newBranchToken.BranchToken,
-		BranchInfo:  historyBranchResp.BranchInfo,
-	})
-	if err != nil {
-		return err
-	}
 	lastEventTime, lastFirstTxnID, err := r.backfillHistory(
 		ctx,
 		request.GetRemoteCluster(),
@@ -289,7 +271,7 @@ func (r *HistoryReplicatorImpl) ApplyWorkflowState(
 		rid,
 		lastEventItem.GetEventId(),
 		lastEventItem.GetVersion(),
-		mergedBranchToken.BranchToken,
+		currentVersionHistory.GetBranchToken(),
 	)
 	if err != nil {
 		return err
@@ -309,10 +291,6 @@ func (r *HistoryReplicatorImpl) ApplyWorkflowState(
 		lastFirstTxnID,
 		lastEventItem.GetVersion(),
 	)
-	if err != nil {
-		return err
-	}
-	err = mutableState.SetCurrentBranchToken(mergedBranchToken.BranchToken)
 	if err != nil {
 		return err
 	}
