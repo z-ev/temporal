@@ -510,7 +510,7 @@ func (d *MutableStateStore) GetWorkflowExecution(
 	aMap := result["activity_map"].(map[int64][]byte)
 	aMapEncoding := result["activity_map_encoding"].(string)
 	for key, value := range aMap {
-		activityInfos[key] = p.NewDataBlob(value, aMapEncoding)
+		activityInfos[key] = p.NewDataBlobWithDebugInfo(value, aMapEncoding, request.ShardID, request.NamespaceID, request.WorkflowID, request.RunID)
 	}
 	state.ActivityInfos = activityInfos
 

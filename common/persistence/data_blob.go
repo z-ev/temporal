@@ -48,3 +48,21 @@ func NewDataBlob(data []byte, encodingTypeStr string) *commonpb.DataBlob {
 		EncodingType: enumspb.EncodingType(encodingType),
 	}
 }
+
+func NewDataBlobWithDebugInfo(data []byte, encodingTypeStr string, shardID int32, namespaceID string, workflowID string, runID string) *commonpb.DataBlob {
+	if len(data) == 0 {
+		return nil
+	}
+
+	encodingType, ok := enumspb.EncodingType_value[encodingTypeStr]
+	if !ok || (enumspb.EncodingType(encodingType) != enumspb.ENCODING_TYPE_PROTO3 &&
+		enumspb.EncodingType(encodingType) != enumspb.ENCODING_TYPE_JSON) {
+		panic(fmt.Sprintf("Invalid encoding: %v, shardID %v, namespaceID %v, workflowID %v, runID %v",
+			encodingTypeStr, shardID, namespaceID, workflowID, runID))
+	}
+
+	return &commonpb.DataBlob{
+		Data:         data,
+		EncodingType: enumspb.EncodingType(encodingType),
+	}
+}
