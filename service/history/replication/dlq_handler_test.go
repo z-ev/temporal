@@ -126,7 +126,6 @@ func (s *dlqHandlerSuite) SetupTest() {
 				params.RemoteCluster,
 				params.Shard,
 				params.HistoryResender,
-				params.HistoryEngine,
 				params.DeleteManager,
 				params.WorkflowCache,
 			)
