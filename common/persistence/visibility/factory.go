@@ -168,7 +168,9 @@ func NewStandardManager(
 	stdVisibilityStore, err := newStandardVisibilityStore(
 		persistenceCfg,
 		persistenceResolver,
-		logger)
+		logger,
+		metricsHandler,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -253,6 +255,7 @@ func newStandardVisibilityStore(
 	persistenceCfg config.Persistence,
 	persistenceResolver resolver.ServiceResolver,
 	logger log.Logger,
+	metricsHandler metrics.MetricsHandler,
 ) (store.VisibilityStore, error) {
 	// If standard visibility is not configured.
 	if persistenceCfg.VisibilityStore == "" {
@@ -267,7 +270,7 @@ func newStandardVisibilityStore(
 	)
 	switch {
 	case visibilityStoreCfg.Cassandra != nil:
-		store, err = cassandra.NewVisibilityStore(*visibilityStoreCfg.Cassandra, persistenceResolver, logger)
+		store, err = cassandra.NewVisibilityStore(*visibilityStoreCfg.Cassandra, persistenceResolver, logger, metricsHandler)
 	case visibilityStoreCfg.SQL != nil:
 		store, err = sql.NewSQLVisibilityStore(*visibilityStoreCfg.SQL, persistenceResolver, logger)
 	}

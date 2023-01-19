@@ -26,6 +26,7 @@ package gocql
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,6 +37,7 @@ import (
 	"go.temporal.io/server/common/config"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/resolver"
 )
 
@@ -47,11 +49,12 @@ const (
 
 type (
 	session struct {
-		status       int32
-		config       config.Cassandra
-		resolver     resolver.ServiceResolver
-		atomic.Value // *gocql.Session
-		logger       log.Logger
+		status         int32
+		config         config.Cassandra
+		resolver       resolver.ServiceResolver
+		atomic.Value   // *gocql.Session
+		logger         log.Logger
+		metricsHandler metrics.MetricsHandler
 
 		sync.Mutex
 		sessionInitTime time.Time
@@ -62,18 +65,24 @@ func NewSession(
 	config config.Cassandra,
 	resolver resolver.ServiceResolver,
 	logger log.Logger,
+	metricsHandler metrics.MetricsHandler,
 ) (*session, error) {
+	metricsHandler = metricsHandler.WithTags(
+		metrics.OperationTag(metrics.PersistenceInitCQLSessionScope),
+		metrics.NamespaceUnknownTag(),
+	)
 
-	gocqlSession, err := initSession(config, resolver)
+	gocqlSession, err := initSession(config, resolver, logger, metricsHandler)
 	if err != nil {
 		return nil, err
 	}
 
 	session := &session{
-		status:   common.DaemonStatusStarted,
-		config:   config,
-		resolver: resolver,
-		logger:   logger,
+		status:         common.DaemonStatusStarted,
+		config:         config,
+		resolver:       resolver,
+		logger:         logger,
+		metricsHandler: metricsHandler,
 
 		sessionInitTime: time.Now().UTC(),
 	}
@@ -94,7 +103,9 @@ func (s *session) refresh() {
 		return
 	}
 
-	newSession, err := initSession(s.config, s.resolver)
+	s.logger.Warn("gocql wrapper: refreshing gocql session")
+
+	newSession, err := initSession(s.config, s.resolver, s.logger, s.metricsHandler)
 	if err != nil {
 		s.logger.Error("gocql wrapper: unable to refresh gocql session", tag.Error(err))
 		return
@@ -110,11 +121,24 @@ func (s *session) refresh() {
 func initSession(
 	config config.Cassandra,
 	resolver resolver.ServiceResolver,
-) (*gocql.Session, error) {
+	logger log.Logger,
+	metricsHandler metrics.MetricsHandler,
+) (session *gocql.Session, retErr error) {
+	startTime := time.Now()
+	metricsHandler.Counter(metrics.PersistenceRequests.GetMetricName()).Record(1)
+	defer func() {
+		metricsHandler.Timer(metrics.PersistenceLatency.GetMetricName()).Record(time.Since(startTime))
+		if retErr != nil {
+			metricsHandler.Counter(metrics.PersistenceFailures.GetMetricName()).Record(1)
+		}
+	}()
+
 	cluster, err := NewCassandraCluster(config, resolver)
 	if err != nil {
 		return nil, err
 	}
+	// tag.Value(cluster) won't work
+	logger.Warn("gocql wrapper: cassandra cluster config", tag.Value(fmt.Sprintf("%+v", cluster)))
 	return cluster.CreateSession()
 }
 

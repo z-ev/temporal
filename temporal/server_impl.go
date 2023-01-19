@@ -36,6 +36,7 @@ import (
 	"go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
 	persistenceClient "go.temporal.io/server/common/persistence/client"
 	"go.temporal.io/server/common/resolver"
 	"go.temporal.io/server/common/resource"
@@ -165,7 +166,7 @@ func initSystemNamespaces(
 		cfg,
 		customDataStoreFactory,
 		logger,
-		nil,
+		metrics.NoopMetricsHandler,
 	)
 	factory := persistenceFactoryProvider(persistenceClient.NewFactoryParams{
 		DataStoreFactory:           dataStoreFactory,
@@ -174,7 +175,7 @@ func initSystemNamespaces(
 		PersistenceNamespaceMaxQPS: nil,
 		EnablePriorityRateLimiting: nil,
 		ClusterName:                persistenceClient.ClusterName(currentClusterName),
-		MetricsHandler:             nil,
+		MetricsHandler:             metrics.NoopMetricsHandler,
 		Logger:                     logger,
 	})
 	defer factory.Close()

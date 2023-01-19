@@ -33,6 +33,7 @@ import (
 	"go.temporal.io/server/common/config"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/persistence"
 	"go.temporal.io/server/common/persistence/nosql/nosqlplugin/cassandra/gocql"
 	"go.temporal.io/server/common/persistence/visibility/manager"
@@ -149,8 +150,9 @@ func NewVisibilityStore(
 	cfg config.Cassandra,
 	r resolver.ServiceResolver,
 	logger log.Logger,
+	metricsHandler metrics.MetricsHandler,
 ) (*visibilityStore, error) {
-	session, err := gocql.NewSession(cfg, r, logger)
+	session, err := gocql.NewSession(cfg, r, logger, metricsHandler)
 	if err != nil {
 		logger.Fatal("unable to initialize cassandra session", tag.Error(err))
 	}

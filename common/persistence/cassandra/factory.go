@@ -30,6 +30,7 @@ import (
 	"go.temporal.io/server/common/config"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
+	"go.temporal.io/server/common/metrics"
 	p "go.temporal.io/server/common/persistence"
 	"go.temporal.io/server/common/persistence/nosql/nosqlplugin/cassandra/gocql"
 	"go.temporal.io/server/common/resolver"
@@ -53,8 +54,9 @@ func NewFactory(
 	r resolver.ServiceResolver,
 	clusterName string,
 	logger log.Logger,
+	metricsHandler metrics.MetricsHandler,
 ) *Factory {
-	session, err := gocql.NewSession(cfg, r, logger)
+	session, err := gocql.NewSession(cfg, r, logger, metricsHandler)
 	if err != nil {
 		logger.Fatal("unable to initialize cassandra session", tag.Error(err))
 	}

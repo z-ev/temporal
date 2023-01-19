@@ -590,7 +590,7 @@ func ApplyClusterMetadataConfigProvider(
 		&config.Persistence,
 		customDataStoreFactory,
 		logger,
-		nil,
+		metrics.NoopMetricsHandler,
 	)
 	factory := persistenceFactoryProvider(persistenceClient.NewFactoryParams{
 		DataStoreFactory:           dataStoreFactory,
@@ -599,7 +599,7 @@ func ApplyClusterMetadataConfigProvider(
 		PersistenceNamespaceMaxQPS: nil,
 		EnablePriorityRateLimiting: nil,
 		ClusterName:                persistenceClient.ClusterName(config.ClusterMetadata.CurrentClusterName),
-		MetricsHandler:             nil,
+		MetricsHandler:             metrics.NoopMetricsHandler,
 		Logger:                     logger,
 	})
 	defer factory.Close()
