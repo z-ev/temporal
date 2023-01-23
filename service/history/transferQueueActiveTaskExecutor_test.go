@@ -26,7 +26,6 @@ package history
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -59,7 +58,6 @@ import (
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/convert"
 	"go.temporal.io/server/common/definition"
-	dc "go.temporal.io/server/common/dynamicconfig"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/namespace"
@@ -80,7 +78,6 @@ import (
 	"go.temporal.io/server/service/history/vclock"
 	"go.temporal.io/server/service/history/workflow"
 	wcache "go.temporal.io/server/service/history/workflow/cache"
-	warchiver "go.temporal.io/server/service/worker/archiver"
 	"go.temporal.io/server/service/worker/parentclosepolicy"
 )
 
@@ -180,7 +177,6 @@ func (s *transferQueueActiveTaskExecutorSuite) SetupTest() {
 	))
 
 	s.mockParentClosePolicyClient = parentclosepolicy.NewMockClient(s.controller)
-	s.mockArchivalClient = warchiver.NewMockClient(s.controller)
 	s.mockMatchingClient = s.mockShard.Resource.MatchingClient
 	s.mockHistoryClient = s.mockShard.Resource.HistoryClient
 	s.mockExecutionMgr = s.mockShard.Resource.ExecutionMgr
@@ -229,7 +225,6 @@ func (s *transferQueueActiveTaskExecutorSuite) SetupTest() {
 	s.transferQueueActiveTaskExecutor = newTransferQueueActiveTaskExecutor(
 		s.mockShard,
 		s.workflowCache,
-		s.mockArchivalClient,
 		h.sdkClientFactory,
 		s.logger,
 		metrics.NoopMetricsHandler,
@@ -718,100 +713,9 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_HasPare
 		CompletedExecution:     &execution,
 		CompletionEvent:        event,
 	}).Return(nil, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewDisabledArchvialConfig())
 
 	_, _, err = s.transferQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(transferTask))
 	s.Nil(err)
-}
-
-func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_CanSkipVisibilityArchival() {
-	for _, skipVisibilityArchival := range []bool{
-		false,
-		true,
-	} {
-		s.Run(fmt.Sprintf("CanSkipVisibilityArchival=%v", skipVisibilityArchival), func() {
-			execution := commonpb.WorkflowExecution{
-				WorkflowId: "some random workflow ID",
-				RunId:      uuid.New(),
-			}
-			workflowType := "some random workflow type"
-			taskQueueName := "some random task queue"
-
-			mutableState := workflow.TestGlobalMutableState(
-				s.mockShard,
-				s.mockShard.GetEventsCache(),
-				s.logger,
-				s.version,
-				execution.GetRunId(),
-			)
-			_, err := mutableState.AddWorkflowExecutionStartedEvent(
-				execution,
-				&historyservice.StartWorkflowExecutionRequest{
-					Attempt:     1,
-					NamespaceId: s.namespaceID.String(),
-					StartRequest: &workflowservice.StartWorkflowExecutionRequest{
-						WorkflowType:             &commonpb.WorkflowType{Name: workflowType},
-						TaskQueue:                &taskqueuepb.TaskQueue{Name: taskQueueName},
-						WorkflowExecutionTimeout: timestamp.DurationPtr(2 * time.Second),
-						WorkflowTaskTimeout:      timestamp.DurationPtr(1 * time.Second),
-					},
-				},
-			)
-			s.Nil(err)
-
-			wt := addWorkflowTaskScheduledEvent(mutableState)
-			event := addWorkflowTaskStartedEvent(mutableState, wt.ScheduledEventID, taskQueueName, uuid.New())
-			wt.StartedEventID = event.GetEventId()
-			event = addWorkflowTaskCompletedEvent(
-				mutableState,
-				wt.ScheduledEventID,
-				wt.StartedEventID,
-				"some random identity",
-			)
-
-			taskID := int64(59)
-			event = addCompleteWorkflowEvent(mutableState, event.GetEventId(), nil)
-
-			transferTask := &tasks.CloseExecutionTask{
-				WorkflowKey: definition.NewWorkflowKey(
-					s.namespaceID.String(),
-					execution.GetWorkflowId(),
-					execution.GetRunId(),
-				),
-				Version:                   s.version,
-				TaskID:                    taskID,
-				VisibilityTimestamp:       time.Now().UTC(),
-				CanSkipVisibilityArchival: skipVisibilityArchival,
-			}
-
-			persistenceMutableState := s.createPersistenceMutableState(
-				mutableState,
-				event.GetEventId(),
-				event.GetVersion(),
-			)
-			s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).
-				Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-			if !skipVisibilityArchival {
-				s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().
-					Return(archiver.NewArchivalConfig(
-						"enabled",
-						dc.GetStringPropertyFn("enabled"),
-						dc.GetBoolPropertyFn(true),
-						"disabled",
-						"random URI",
-					)).AnyTimes()
-				s.mockArchivalClient.EXPECT().Archive(gomock.Any(), gomock.Any()).Return(nil, nil)
-				s.mockSearchAttributesProvider.EXPECT().GetSearchAttributes(gomock.Any(), false)
-			}
-
-			_, _, err = s.transferQueueActiveTaskExecutor.Execute(
-				context.Background(),
-				s.newTaskExecutable(transferTask),
-			)
-			s.Nil(err)
-
-		})
-	}
 }
 
 func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_NoParent() {
@@ -859,9 +763,6 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_NoParen
 
 	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewArchivalConfig("enabled", dc.GetStringPropertyFn("enabled"), dc.GetBoolPropertyFn(true), "disabled", "random URI"))
-	s.mockArchivalClient.EXPECT().Archive(gomock.Any(), gomock.Any()).Return(nil, nil)
-	s.mockSearchAttributesProvider.EXPECT().GetSearchAttributes(gomock.Any(), false)
 
 	_, _, err = s.transferQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(transferTask))
 	s.Nil(err)
@@ -1001,7 +902,6 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_NoParen
 
 	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewDisabledArchvialConfig())
 	s.mockHistoryClient.EXPECT().RequestCancelWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *historyservice.RequestCancelWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.RequestCancelWorkflowExecutionResponse, error) {
 			s.True(request.GetChildWorkflowOnly())
@@ -1105,7 +1005,6 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_NoParen
 
 	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewDisabledArchvialConfig())
 	s.mockParentClosePolicyClient.EXPECT().SendParentClosePolicyRequest(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request parentclosepolicy.Request) error {
 			s.Equal(execution, request.ParentExecution)
@@ -1199,7 +1098,6 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_NoParen
 
 	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewDisabledArchvialConfig())
 
 	_, _, err = s.transferQueueActiveTaskExecutor.Execute(context.Background(), s.newTaskExecutable(transferTask))
 	s.Nil(err)
@@ -1309,7 +1207,6 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_NoParen
 
 	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewDisabledArchvialConfig())
 
 	s.mockHistoryClient.EXPECT().TerminateWorkflowExecution(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(_ context.Context, request *historyservice.TerminateWorkflowExecutionRequest, _ ...grpc.CallOption) (*historyservice.TerminateWorkflowExecutionResponse, error) {
@@ -1379,9 +1276,6 @@ func (s *transferQueueActiveTaskExecutorSuite) TestProcessCloseExecution_DeleteA
 
 	persistenceMutableState := s.createPersistenceMutableState(mutableState, event.GetEventId(), event.GetVersion())
 	s.mockExecutionMgr.EXPECT().GetWorkflowExecution(gomock.Any(), gomock.Any()).Return(&persistence.GetWorkflowExecutionResponse{State: persistenceMutableState}, nil)
-	s.mockArchivalMetadata.EXPECT().GetVisibilityConfig().Return(archiver.NewArchivalConfig("enabled", dc.GetStringPropertyFn("enabled"), dc.GetBoolPropertyFn(true), "disabled", "random URI")).Times(2)
-	s.mockArchivalClient.EXPECT().Archive(gomock.Any(), gomock.Any()).Return(nil, nil).Times(2)
-	s.mockSearchAttributesProvider.EXPECT().GetSearchAttributes(gomock.Any(), false).Times(2)
 	mockDeleteMgr := deletemanager.NewMockDeleteManager(s.controller)
 	mockDeleteMgr.EXPECT().DeleteWorkflowExecution(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 	s.transferQueueActiveTaskExecutor.workflowDeleteManager = mockDeleteMgr

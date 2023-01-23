@@ -79,9 +79,7 @@ func (a *archivalConfig) StaticClusterState() ArchivalState {
 const (
 	// ArchivalDisabled means this cluster is not configured to handle archival
 	ArchivalDisabled ArchivalState = iota
-	// ArchivalPaused means this cluster is configured to handle archival but is currently not archiving
-	// This state is not yet implemented, as of now ArchivalPaused is treated the same way as ArchivalDisabled
-	ArchivalPaused
+	_                              // for deprecated ArchivalPaused state
 	// ArchivalEnabled means this cluster is currently archiving
 	ArchivalEnabled
 )
@@ -216,8 +214,6 @@ func getClusterArchivalState(str string) (ArchivalState, error) {
 	switch str {
 	case "", config.ArchivalDisabled:
 		return ArchivalDisabled, nil
-	case config.ArchivalPaused:
-		return ArchivalPaused, nil
 	case config.ArchivalEnabled:
 		return ArchivalEnabled, nil
 	}

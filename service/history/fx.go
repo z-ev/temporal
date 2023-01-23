@@ -33,7 +33,6 @@ import (
 	"google.golang.org/grpc/health"
 
 	"go.temporal.io/server/common"
-	"go.temporal.io/server/common/archiver/provider"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/config"
 	"go.temporal.io/server/common/dynamicconfig"
@@ -50,7 +49,6 @@ import (
 	"go.temporal.io/server/common/resolver"
 	"go.temporal.io/server/common/resource"
 	"go.temporal.io/server/common/rpc/interceptor"
-	"go.temporal.io/server/common/sdk"
 	"go.temporal.io/server/common/searchattribute"
 	"go.temporal.io/server/service"
 	"go.temporal.io/server/service/history/api"
@@ -61,7 +59,6 @@ import (
 	"go.temporal.io/server/service/history/shard"
 	"go.temporal.io/server/service/history/workflow"
 	"go.temporal.io/server/service/history/workflow/cache"
-	warchiver "go.temporal.io/server/service/worker/archiver"
 )
 
 var Module = fx.Options(
@@ -82,7 +79,6 @@ var Module = fx.Options(
 	fx.Provide(PersistenceRateLimitingParamsProvider),
 	fx.Provide(ServiceResolverProvider),
 	fx.Provide(EventNotifierProvider),
-	fx.Provide(ArchivalClientProvider),
 	fx.Provide(HistoryEngineFactoryProvider),
 	fx.Provide(HandlerProvider),
 	fx.Provide(ServiceProvider),
@@ -282,24 +278,6 @@ func EventNotifierProvider(
 		timeSource,
 		metricsHandler,
 		config.GetShardID,
-	)
-}
-
-func ArchivalClientProvider(
-	archiverProvider provider.ArchiverProvider,
-	sdkClientFactory sdk.ClientFactory,
-	logger log.Logger,
-	metricsHandler metrics.Handler,
-	config *configs.Config,
-) warchiver.Client {
-	return warchiver.NewClient(
-		metricsHandler,
-		logger,
-		sdkClientFactory,
-		config.NumArchiveSystemWorkflows,
-		config.ArchiveRequestRPS,
-		config.ArchiveSignalTimeout,
-		archiverProvider,
 	)
 }
 

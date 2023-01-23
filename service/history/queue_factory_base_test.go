@@ -46,7 +46,6 @@ import (
 	"go.temporal.io/server/service/history/archival"
 	"go.temporal.io/server/service/history/configs"
 	"go.temporal.io/server/service/history/workflow"
-	"go.temporal.io/server/service/worker/archiver"
 )
 
 // TestQueueModule_ArchivalQueueCreated tests that the archival queue is created if and only if the static config for
@@ -169,7 +168,6 @@ type compileTimeDependencies struct {
 	clock.TimeSource
 	log.SnTaggedLogger
 	client.Bean
-	archiver.Client
 	sdk.ClientFactory
 	resource.MatchingClient
 	historyservice.HistoryServiceClient

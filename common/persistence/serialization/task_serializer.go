@@ -550,33 +550,22 @@ func (s *TaskSerializer) transferCloseTaskToProto(
 		TaskId:                  closeTask.TaskID,
 		VisibilityTime:          timestamp.TimePtr(closeTask.VisibilityTimestamp),
 		DeleteAfterClose:        closeTask.DeleteAfterClose,
-		TaskDetails: &persistencespb.TransferTaskInfo_CloseExecutionTaskDetails_{
-			CloseExecutionTaskDetails: &persistencespb.TransferTaskInfo_CloseExecutionTaskDetails{
-				CanSkipVisibilityArchival: closeTask.CanSkipVisibilityArchival,
-			},
-		},
 	}
 }
 
 func (s *TaskSerializer) transferCloseTaskFromProto(
 	closeTask *persistencespb.TransferTaskInfo,
 ) *tasks.CloseExecutionTask {
-	canSkipVisibilityArchival := false
-	closeExecutionTaskDetails := closeTask.GetCloseExecutionTaskDetails()
-	if closeExecutionTaskDetails != nil {
-		canSkipVisibilityArchival = closeExecutionTaskDetails.CanSkipVisibilityArchival
-	}
 	return &tasks.CloseExecutionTask{
 		WorkflowKey: definition.NewWorkflowKey(
 			closeTask.NamespaceId,
 			closeTask.WorkflowId,
 			closeTask.RunId,
 		),
-		VisibilityTimestamp:       *closeTask.VisibilityTime,
-		TaskID:                    closeTask.TaskId,
-		Version:                   closeTask.Version,
-		DeleteAfterClose:          closeTask.DeleteAfterClose,
-		CanSkipVisibilityArchival: canSkipVisibilityArchival,
+		VisibilityTimestamp: *closeTask.VisibilityTime,
+		TaskID:              closeTask.TaskId,
+		Version:             closeTask.Version,
+		DeleteAfterClose:    closeTask.DeleteAfterClose,
 		// Delete workflow task process stage is not persisted. It is only for in memory retries.
 		DeleteProcessStage: tasks.DeleteWorkflowExecutionStageNone,
 	}
@@ -872,7 +861,6 @@ func (s *TaskSerializer) timerWorkflowCleanupTaskToProto(
 		TaskId:              workflowCleanupTimer.TaskID,
 		VisibilityTime:      &workflowCleanupTimer.VisibilityTimestamp,
 		BranchToken:         workflowCleanupTimer.BranchToken,
-		AlreadyArchived:     workflowCleanupTimer.WorkflowDataAlreadyArchived,
 	}
 }
 
@@ -885,11 +873,10 @@ func (s *TaskSerializer) timerWorkflowCleanupTaskFromProto(
 			workflowCleanupTimer.WorkflowId,
 			workflowCleanupTimer.RunId,
 		),
-		VisibilityTimestamp:         *workflowCleanupTimer.VisibilityTime,
-		TaskID:                      workflowCleanupTimer.TaskId,
-		Version:                     workflowCleanupTimer.Version,
-		BranchToken:                 workflowCleanupTimer.BranchToken,
-		WorkflowDataAlreadyArchived: workflowCleanupTimer.AlreadyArchived,
+		VisibilityTimestamp: *workflowCleanupTimer.VisibilityTime,
+		TaskID:              workflowCleanupTimer.TaskId,
+		Version:             workflowCleanupTimer.Version,
+		BranchToken:         workflowCleanupTimer.BranchToken,
 		// Delete workflow task process stage is not persisted. It is only for in memory retries.
 		ProcessStage: tasks.DeleteWorkflowExecutionStageNone,
 	}

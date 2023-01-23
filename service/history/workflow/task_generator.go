@@ -56,12 +56,7 @@ type (
 			closeEvent *historypb.HistoryEvent,
 			deleteAfterClose bool,
 		) error
-		// GenerateDeleteHistoryEventTask adds a tasks.DeleteHistoryEventTask to the mutable state.
-		// This task is used to delete the history events of the workflow execution after the retention period expires.
-		// If workflowDataAlreadyArchived is true, then the workflow data is already archived,
-		// so we can delete the history immediately. Otherwise, we need to archive the history first before we can
-		// safely delete it.
-		GenerateDeleteHistoryEventTask(closeTime time.Time, workflowDataAlreadyArchived bool) error
+		GenerateDeleteHistoryEventTask(closeTime time.Time) error
 		GenerateDeleteExecutionTask() (*tasks.DeleteExecutionTask, error)
 		GenerateRecordWorkflowStartedTasks(
 			startEvent *historypb.HistoryEvent,
@@ -207,9 +202,6 @@ func (r *TaskGeneratorImpl) GenerateWorkflowCloseTasks(
 			// archiveTime is the time when the archival queue recognizes the ArchiveExecutionTask as ready-to-process
 			archiveTime := closeEvent.GetEventTime().Add(delay)
 
-			// We can skip visibility archival in the close execution task if we are using the durable archival flow.
-			// The visibility archival will be handled by the archival queue.
-			closeExecutionTask.CanSkipVisibilityArchival = true
 			task := &tasks.ArchiveExecutionTask{
 				// TaskID is set by the shard
 				WorkflowKey:         r.mutableState.GetWorkflowKey(),
@@ -219,7 +211,7 @@ func (r *TaskGeneratorImpl) GenerateWorkflowCloseTasks(
 			closeTasks = append(closeTasks, task)
 		} else {
 			closeTime := timestamp.TimeValue(closeEvent.GetEventTime())
-			if err := r.GenerateDeleteHistoryEventTask(closeTime, false); err != nil {
+			if err := r.GenerateDeleteHistoryEventTask(closeTime); err != nil {
 				return err
 			}
 		}
@@ -252,7 +244,7 @@ func (r *TaskGeneratorImpl) getRetention() (time.Duration, error) {
 // GenerateDeleteHistoryEventTask adds a task to delete all history events for a workflow execution.
 // This method only adds the task to the mutable state object in memory; it does not write the task to the database.
 // You must call shard.Context#AddTasks to notify the history engine of this task.
-func (r *TaskGeneratorImpl) GenerateDeleteHistoryEventTask(closeTime time.Time, workflowDataAlreadyArchived bool) error {
+func (r *TaskGeneratorImpl) GenerateDeleteHistoryEventTask(closeTime time.Time) error {
 	retention, err := r.getRetention()
 	if err != nil {
 		return err
@@ -267,11 +259,10 @@ func (r *TaskGeneratorImpl) GenerateDeleteHistoryEventTask(closeTime time.Time, 
 	deleteTime := closeTime.Add(retention).Add(retentionJitterDuration)
 	r.mutableState.AddTasks(&tasks.DeleteHistoryEventTask{
 		// TaskID is set by shard
-		WorkflowKey:                 r.mutableState.GetWorkflowKey(),
-		VisibilityTimestamp:         deleteTime,
-		Version:                     currentVersion,
-		BranchToken:                 branchToken,
-		WorkflowDataAlreadyArchived: workflowDataAlreadyArchived,
+		WorkflowKey:         r.mutableState.GetWorkflowKey(),
+		VisibilityTimestamp: deleteTime,
+		Version:             currentVersion,
+		BranchToken:         branchToken,
 	})
 	return nil
 }

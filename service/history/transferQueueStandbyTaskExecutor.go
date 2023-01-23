@@ -50,7 +50,6 @@ import (
 	"go.temporal.io/server/service/history/tasks"
 	"go.temporal.io/server/service/history/workflow"
 	wcache "go.temporal.io/server/service/history/workflow/cache"
-	"go.temporal.io/server/service/worker/archiver"
 )
 
 type (
@@ -69,7 +68,6 @@ var (
 func newTransferQueueStandbyTaskExecutor(
 	shard shard.Context,
 	workflowCache wcache.Cache,
-	archivalClient archiver.Client,
 	nDCHistoryResender xdc.NDCHistoryResender,
 	logger log.Logger,
 	metricProvider metrics.Handler,
@@ -80,7 +78,6 @@ func newTransferQueueStandbyTaskExecutor(
 		transferQueueTaskExecutorBase: newTransferQueueTaskExecutorBase(
 			shard,
 			workflowCache,
-			archivalClient,
 			logger,
 			metricProvider,
 			matchingClient,
@@ -236,20 +233,7 @@ func (t *transferQueueStandbyTaskExecutor) processCloseExecution(
 			// this can happen if workflow is reset.
 			return nil, nil
 		}
-
-		wfCloseTime, err := mutableState.GetWorkflowCloseTime(ctx)
-		if err != nil {
-			return nil, err
-		}
 		executionInfo := mutableState.GetExecutionInfo()
-		executionState := mutableState.GetExecutionState()
-		workflowTypeName := executionInfo.WorkflowTypeName
-		workflowStatus := executionState.Status
-		workflowHistoryLength := mutableState.GetNextEventID() - 1
-		workflowStartTime := timestamp.TimeValue(mutableState.GetExecutionInfo().GetStartTime())
-		workflowExecutionTime := timestamp.TimeValue(mutableState.GetExecutionInfo().GetExecutionTime())
-		visibilityMemo := getWorkflowMemo(executionInfo.Memo)
-		searchAttr := getSearchAttributes(executionInfo.SearchAttributes)
 
 		lastWriteVersion, err := mutableState.GetLastWriteVersion()
 		if err != nil {
@@ -258,25 +242,6 @@ func (t *transferQueueStandbyTaskExecutor) processCloseExecution(
 		err = CheckTaskVersion(t.shard, t.logger, mutableState.GetNamespaceEntry(), lastWriteVersion, transferTask.Version, transferTask)
 		if err != nil {
 			return nil, err
-		}
-
-		if !transferTask.CanSkipVisibilityArchival {
-			if err := t.archiveVisibility(
-				ctx,
-				namespace.ID(transferTask.NamespaceID),
-				transferTask.WorkflowID,
-				transferTask.RunID,
-				workflowTypeName,
-				workflowStartTime,
-				workflowExecutionTime,
-				timestamp.TimeValue(wfCloseTime),
-				workflowStatus,
-				workflowHistoryLength,
-				visibilityMemo,
-				searchAttr,
-			); err != nil {
-				return nil, err
-			}
 		}
 
 		// verify if parent got the completion event
