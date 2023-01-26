@@ -29,6 +29,7 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	commonpb "go.temporal.io/api/common/v1"
@@ -377,6 +378,32 @@ func (c *ContextImpl) ConflictResolveWorkflowExecution(
 	currentMutableState MutableState,
 	currentTransactionPolicy *TransactionPolicy,
 ) (retError error) {
+
+	workflows := fmt.Sprintf("resetWorkflowKey: %s,%s",
+		resetMutableState.GetExecutionInfo().WorkflowId,
+		resetMutableState.GetExecutionState().RunId,
+	)
+	if newContext != nil {
+		key := newContext.GetWorkflowKey()
+		workflows += fmt.Sprintf("newWorkflow: %s,%s",
+			key.WorkflowID,
+			key.RunID,
+		)
+	}
+	if currentContext != nil {
+		key := currentContext.GetWorkflowKey()
+		workflows += fmt.Sprintf("currentWorkflow: %s,%s",
+			key.WorkflowID,
+			key.RunID,
+		)
+	}
+
+	c.logger.Info("ConflictResolveWorkflowExecution",
+		tag.WorkflowNamespaceID(c.workflowKey.NamespaceID),
+		tag.NewStringTag("workflow-infos", workflows),
+		tag.NewInt("conflict-resolve-mode", int(conflictResolveMode)),
+		tag.SysStackTrace(string(debug.Stack())),
+	)
 
 	defer func() {
 		if retError != nil {
