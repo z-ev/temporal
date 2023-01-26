@@ -243,12 +243,15 @@ func (p *scheduledQueue) processNewRange() {
 }
 
 func (p *scheduledQueue) lookAheadTask() {
+	p.metricsHandler.Counter(metrics.LookAheadCounter.GetMetricName()).Record(1)
+
 	rateLimitCtx, rateLimitCancel := context.WithTimeout(context.Background(), lookAheadRateLimitDelay)
 	rateLimitErr := p.readerRateLimiter.Wait(rateLimitCtx, p.lookAheadRateLimitRequest)
 	rateLimitCancel()
 	if rateLimitErr != nil {
 		deadline, _ := rateLimitCtx.Deadline()
 		p.timerGate.Update(deadline)
+		p.metricsHandler.Counter(metrics.LookAheadThrottledCounter.GetMetricName()).Record(1)
 		return
 	}
 

@@ -1450,6 +1450,8 @@ var (
 	ActivityE2ELatency                                = NewTimerDef("activity_end_to_end_latency")
 	AckLevelUpdateCounter                             = NewCounterDef("ack_level_update")
 	AckLevelUpdateFailedCounter                       = NewCounterDef("ack_level_update_failed")
+	LookAheadCounter                                  = NewCounterDef("look_ahead")
+	LookAheadThrottledCounter                         = NewCounterDef("look_ahead_throttled")
 	CommandTypeScheduleActivityCounter                = NewCounterDef("schedule_activity_command")
 	CommandTypeCompleteWorkflowCounter                = NewCounterDef("complete_workflow_command")
 	CommandTypeFailWorkflowCounter                    = NewCounterDef("fail_workflow_command")
