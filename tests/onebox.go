@@ -70,6 +70,7 @@ import (
 	"go.temporal.io/server/service/frontend"
 	"go.temporal.io/server/service/history"
 	"go.temporal.io/server/service/history/replication"
+	"go.temporal.io/server/service/history/tasks"
 	"go.temporal.io/server/service/history/workflow"
 	"go.temporal.io/server/service/matching"
 	"go.temporal.io/server/service/worker"
@@ -361,6 +362,7 @@ func (c *temporalImpl) startFrontend(hosts map[primitives.ServiceName][]string, 
 	var namespaceRegistry namespace.Registry
 	var rpcFactory common.RPCFactory
 	feApp := fx.New(
+		tasks.Module,
 		fx.Supply(
 			stoppedCh,
 			persistenceConfig,
@@ -454,6 +456,7 @@ func (c *temporalImpl) startHistory(
 		var clientBean client.Bean
 		var namespaceRegistry namespace.Registry
 		app := fx.New(
+			tasks.Module,
 			fx.Supply(
 				stoppedCh,
 				persistenceConfig,

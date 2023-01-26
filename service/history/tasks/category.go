@@ -25,11 +25,7 @@
 package tasks
 
 import (
-	"fmt"
 	"strconv"
-	"sync"
-
-	"golang.org/x/exp/maps"
 
 	enumsspb "go.temporal.io/server/api/enums/v1"
 )
@@ -43,6 +39,14 @@ type (
 
 	CategoryType int
 )
+
+func NewCategory(id int32, cType CategoryType, name string) Category {
+	return Category{
+		id:    id,
+		cType: cType,
+		name:  name,
+	}
+}
 
 const (
 	CategoryIDUnspecified = int32(enumsspb.TASK_CATEGORY_UNSPECIFIED)
@@ -98,69 +102,6 @@ var (
 		name:  CategoryNameArchival,
 	}
 )
-
-var (
-	categories = struct {
-		sync.RWMutex
-		m map[int32]Category
-	}{
-		m: map[int32]Category{
-			CategoryTransfer.ID():    CategoryTransfer,
-			CategoryTimer.ID():       CategoryTimer,
-			CategoryVisibility.ID():  CategoryVisibility,
-			CategoryReplication.ID(): CategoryReplication,
-		},
-	}
-)
-
-// NewCategory creates a new Category and register the created Category
-// Registered Categories can be retrieved via GetCategories() or GetCategoryByID()
-// NewCategory panics when a Category with the same ID has already been registered
-func NewCategory(
-	id int32,
-	categoryType CategoryType,
-	name string,
-) Category {
-	categories.Lock()
-	defer categories.Unlock()
-
-	if category, ok := categories.m[id]; ok {
-		panic(fmt.Sprintf("category id: %v has already been defined as type %v and name %v", id, category.cType, category.name))
-	}
-
-	newCategory := Category{
-		id:    id,
-		cType: categoryType,
-		name:  name,
-	}
-	categories.m[id] = newCategory
-
-	return newCategory
-}
-
-// GetCategories returns a deep copy of all registered Categories
-func GetCategories() map[int32]Category {
-	categories.RLock()
-	defer categories.RUnlock()
-	return maps.Clone(categories.m)
-}
-
-// RemoveCategory removes a registered Category.
-// This should only be used for testing.
-func RemoveCategory(id int32) {
-	categories.Lock()
-	defer categories.Unlock()
-	delete(categories.m, id)
-}
-
-// GetCategoryByID returns a registered Category with the same ID
-func GetCategoryByID(id int32) (Category, bool) {
-	categories.RLock()
-	defer categories.RUnlock()
-
-	category, ok := categories.m[id]
-	return category, ok
-}
 
 func (c *Category) ID() int32 {
 	return c.id

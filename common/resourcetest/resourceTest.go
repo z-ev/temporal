@@ -56,6 +56,7 @@ import (
 	"go.temporal.io/server/common/primitives"
 	"go.temporal.io/server/common/sdk"
 	"go.temporal.io/server/common/searchattribute"
+	"go.temporal.io/server/service/history/tasks"
 )
 
 // TODO: replace with test specific Fx
@@ -109,7 +110,8 @@ type (
 		ExecutionMgr              *persistence.MockExecutionManager
 		PersistenceBean           *persistenceClient.MockBean
 
-		Logger log.Logger
+		Logger               log.Logger
+		TaskCategoryRegistry tasks.CategoryRegistry
 	}
 )
 
@@ -182,12 +184,13 @@ func NewTest(
 
 		// other common resources
 
-		NamespaceCache:    namespace.NewMockRegistry(controller),
-		TimeSource:        clock.NewRealTimeSource(),
-		PayloadSerializer: serialization.NewSerializer(),
-		MetricsHandler:    metricsHandler,
-		ArchivalMetadata:  archiver.NewMetadataMock(controller),
-		ArchiverProvider:  provider.NewMockArchiverProvider(controller),
+		NamespaceCache:       namespace.NewMockRegistry(controller),
+		TimeSource:           clock.NewRealTimeSource(),
+		PayloadSerializer:    serialization.NewSerializer(),
+		MetricsHandler:       metricsHandler,
+		ArchivalMetadata:     archiver.NewMetadataMock(controller),
+		ArchiverProvider:     provider.NewMockArchiverProvider(controller),
+		TaskCategoryRegistry: tasks.NewDefaultCategoryRegistry(),
 
 		// membership infos
 
@@ -445,4 +448,8 @@ func (t *Test) GetSearchAttributesMapperProvider() searchattribute.MapperProvide
 
 func (t *Test) RefreshNamespaceCache() {
 	t.NamespaceCache.Refresh()
+}
+
+func (t *Test) GetTaskCategoryRegistry() tasks.CategoryRegistry {
+	return t.TaskCategoryRegistry
 }

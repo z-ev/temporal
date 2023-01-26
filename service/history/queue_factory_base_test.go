@@ -98,17 +98,18 @@ func (c *moduleTestCase) Run(t *testing.T) {
 
 	controller := gomock.NewController(t)
 	dependencies := getModuleDependencies(controller, c)
-	var factories []QueueFactory
 
+	var hookParams QueueFactoriesLifetimeHookParams
+	var categoryRegistry tasks.CategoryRegistry
 	app := fx.New(
 		dependencies,
 		QueueModule,
-		fx.Invoke(func(params QueueFactoriesLifetimeHookParams) {
-			factories = params.Factories
-		}),
+		fx.Populate(&hookParams, &categoryRegistry),
 	)
 
 	require.NoError(t, app.Err())
+
+	factories := hookParams.Factories
 	require.NotNil(t, factories)
 	var (
 		txq QueueFactory
@@ -132,15 +133,19 @@ func (c *moduleTestCase) Run(t *testing.T) {
 			aq = f
 		}
 	}
+	categories := categoryRegistry.GetCategories()
 	require.NotNil(t, txq)
+	assert.Contains(t, categories, tasks.CategoryIDTransfer)
 	require.NotNil(t, tiq)
+	assert.Contains(t, categories, tasks.CategoryIDTimer)
 	require.NotNil(t, viq)
+	assert.Contains(t, categories, tasks.CategoryIDVisibility)
 	if c.ExpectArchivalQueue {
 		require.NotNil(t, aq)
-		assert.Contains(t, tasks.GetCategories(), tasks.CategoryIDArchival)
+		assert.Contains(t, categories, tasks.CategoryIDArchival)
 	} else {
 		require.Nil(t, aq)
-		assert.NotContains(t, tasks.GetCategories(), tasks.CategoryIDArchival)
+		assert.NotContains(t, categories, tasks.CategoryIDArchival)
 	}
 }
 
@@ -155,12 +160,15 @@ func getModuleDependencies(controller *gomock.Controller, c *moduleTestCase) fx.
 	archivalMetadata := getArchivalMetadata(controller, c)
 	clusterMetadata := cluster.NewMockMetadata(controller)
 	clusterMetadata.EXPECT().GetCurrentClusterName().Return("module-test-cluster-name").AnyTimes()
-	return fx.Supply(
-		compileTimeDependencies{},
-		cfg,
-		fx.Annotate(archivalMetadata, fx.As(new(carchiver.ArchivalMetadata))),
-		fx.Annotate(metrics.NoopMetricsHandler, fx.As(new(metrics.Handler))),
-		fx.Annotate(clusterMetadata, fx.As(new(cluster.Metadata))),
+	return fx.Options(
+		fx.Supply(
+			compileTimeDependencies{},
+			cfg,
+			fx.Annotate(archivalMetadata, fx.As(new(carchiver.ArchivalMetadata))),
+			fx.Annotate(metrics.NoopMetricsHandler, fx.As(new(metrics.Handler))),
+			fx.Annotate(clusterMetadata, fx.As(new(cluster.Metadata))),
+		),
+		tasks.Module,
 	)
 }
 

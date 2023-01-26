@@ -68,6 +68,7 @@ import (
 	"go.temporal.io/server/common/sdk"
 	"go.temporal.io/server/common/searchattribute"
 	"go.temporal.io/server/common/telemetry"
+	"go.temporal.io/server/service/history/tasks"
 )
 
 type (
@@ -127,6 +128,7 @@ var Module = fx.Options(
 )
 
 var DefaultOptions = fx.Options(
+	tasks.Module,
 	fx.Provide(MembershipMonitorProvider),
 	fx.Provide(RPCFactoryProvider),
 	fx.Provide(ArchivalMetadataProvider),

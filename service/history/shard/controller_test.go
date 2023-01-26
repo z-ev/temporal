@@ -105,6 +105,7 @@ func NewTestController(
 		clusterMetadata:             resource.GetClusterMetadata(),
 		archivalMetadata:            resource.GetArchivalMetadata(),
 		hostInfoProvider:            hostInfoProvider,
+		taskCategoryRegistry:        resource.GetTaskCategoryRegistry(),
 
 		status:               common.DaemonStatusInitialized,
 		membershipUpdateCh:   make(chan *membership.ChangedEvent, 10),

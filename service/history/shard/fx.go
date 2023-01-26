@@ -43,6 +43,7 @@ import (
 	"go.temporal.io/server/common/searchattribute"
 	"go.temporal.io/server/service/history/configs"
 	"go.temporal.io/server/service/history/consts"
+	"go.temporal.io/server/service/history/tasks"
 )
 
 var Module = fx.Options(
@@ -73,6 +74,7 @@ func ControllerProvider(
 	hostInfoProvider membership.HostInfoProvider,
 	engineFactory EngineFactory,
 	tracerProvider trace.TracerProvider,
+	taskCategoryRegistry tasks.CategoryRegistry,
 ) Controller {
 	return &ControllerImpl{
 		status:                      common.DaemonStatusInitialized,
@@ -100,5 +102,6 @@ func ControllerProvider(
 		hostInfoProvider:            hostInfoProvider,
 		engineFactory:               engineFactory,
 		tracer:                      tracerProvider.Tracer(consts.LibraryName),
+		taskCategoryRegistry:        taskCategoryRegistry,
 	}
 }

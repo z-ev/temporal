@@ -135,23 +135,21 @@ type additionalQueueFactories struct {
 // is why we must return a list here.
 func getOptionalQueueFactories(
 	archivalMetadata archiver.ArchivalMetadata,
+	registry tasks.CategoryRegistry,
 	params ArchivalQueueFactoryParams,
-) additionalQueueFactories {
-
-	c := tasks.CategoryArchival
-	// Removing this category will only affect tests because this method is only called once in production,
-	// but it may be called many times across test runs, which would leave the archival queue as a dangling category
-	tasks.RemoveCategory(c.ID())
+) (additionalQueueFactories, error) {
 	if archivalMetadata.GetHistoryConfig().StaticClusterState() != archiver.ArchivalEnabled &&
 		archivalMetadata.GetVisibilityConfig().StaticClusterState() != archiver.ArchivalEnabled {
-		return additionalQueueFactories{}
+		return additionalQueueFactories{}, nil
 	}
-	tasks.NewCategory(c.ID(), c.Type(), c.Name())
+	if err := registry.RegisterCategory(tasks.CategoryArchival); err != nil {
+		return additionalQueueFactories{}, err
+	}
 	return additionalQueueFactories{
 		Factories: []QueueFactory{
 			NewArchivalQueueFactory(params),
 		},
-	}
+	}, nil
 }
 
 func QueueSchedulerRateLimiterProvider(

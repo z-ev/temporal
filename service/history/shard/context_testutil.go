@@ -111,6 +111,7 @@ func NewTestContext(
 		historyClient:           resourceTest.GetHistoryClient(),
 		archivalMetadata:        resourceTest.GetArchivalMetadata(),
 		hostInfoProvider:        hostInfoProvider,
+		taskCategoryRegistry:    resourceTest.GetTaskCategoryRegistry(),
 	}
 	return &ContextTest{
 		Resource:             resourceTest,

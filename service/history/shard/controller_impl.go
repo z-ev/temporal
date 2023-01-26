@@ -53,6 +53,7 @@ import (
 	serviceerrors "go.temporal.io/server/common/serviceerror"
 	"go.temporal.io/server/common/util"
 	"go.temporal.io/server/service/history/configs"
+	"go.temporal.io/server/service/history/tasks"
 )
 
 const (
@@ -94,6 +95,7 @@ type (
 		archivalMetadata            archiver.ArchivalMetadata
 		hostInfoProvider            membership.HostInfoProvider
 		tracer                      trace.Tracer
+		taskCategoryRegistry        tasks.CategoryRegistry
 	}
 )
 
@@ -309,6 +311,7 @@ func (c *ControllerImpl) getOrCreateShardContext(shardID int32) (*ContextImpl, e
 		c.clusterMetadata,
 		c.archivalMetadata,
 		c.hostInfoProvider,
+		c.taskCategoryRegistry,
 	)
 	if err != nil {
 		return nil, err
