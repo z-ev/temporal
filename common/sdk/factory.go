@@ -27,7 +27,9 @@
 package sdk
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"sync"
 
 	sdkclient "go.temporal.io/sdk/client"
@@ -49,7 +51,11 @@ type (
 		// MetricsHandler, or Logger (they will be overwritten)
 		NewClient(options sdkclient.Options) sdkclient.Client
 		GetSystemClient() sdkclient.Client
-		NewWorker(client sdkclient.Client, taskQueue string, options sdkworker.Options) sdkworker.Worker
+		NewWorker(
+			client sdkclient.Client,
+			taskQueue string,
+			options sdkworker.Options,
+		) sdkworker.Worker
 	}
 
 	clientFactory struct {
@@ -104,21 +110,26 @@ func (f *clientFactory) NewClient(options sdkclient.Options) sdkclient.Client {
 	return client
 }
 
-func (f *clientFactory) GetSystemClient() sdkclient.Client {
+var (
+	ErrDialSDKClient = fmt.Errorf("error dialing sdk client")
+)
+
+func (f *clientFactory) RegisterSystemClient(ctx context.Context) error {
+	var err error
 	f.once.Do(func() {
-		err := backoff.ThrottleRetry(func() error {
+		err = backoff.ThrottleRetryContext(ctx, func(ctx context.Context) error {
 			sdkClient, err := sdkclient.Dial(f.options(sdkclient.Options{
 				Namespace: primitives.SystemLocalNamespace,
 			}))
 			if err != nil {
-				f.logger.Warn("error creating sdk client", tag.Error(err))
 				return err
 			}
 			f.systemSdkClient = sdkClient
 			return nil
 		}, common.CreateSdkClientFactoryRetryPolicy(), common.IsContextDeadlineExceededErr)
 		if err != nil {
-			f.logger.Fatal("error creating sdk client", tag.Error(err))
+			err = fmt.Errorf("%w: %v", ErrDialSDKClient, err)
+			return
 		}
 
 		if size := f.stickyCacheSize(); size > 0 {
@@ -126,6 +137,11 @@ func (f *clientFactory) GetSystemClient() sdkclient.Client {
 			sdkworker.SetStickyWorkflowCacheSize(size)
 		}
 	})
+
+	return err
+}
+
+func (f *clientFactory) GetSystemClient() sdkclient.Client {
 	return f.systemSdkClient
 }
 

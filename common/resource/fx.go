@@ -394,18 +394,27 @@ func SdkClientFactoryProvider(
 	logger log.SnTaggedLogger,
 	resolver membership.GRPCResolver,
 	dc *dynamicconfig.Collection,
+	lc fx.Lifecycle,
 ) (sdk.ClientFactory, error) {
 	frontendURL, frontendTLSConfig, err := getFrontendConnectionDetails(cfg, tlsConfigProvider, resolver)
 	if err != nil {
 		return nil, err
 	}
-	return sdk.NewClientFactory(
+	factory := sdk.NewClientFactory(
 		frontendURL,
 		frontendTLSConfig,
 		metricsHandler,
 		logger,
 		dc.GetIntProperty(dynamicconfig.WorkerStickyCacheSize, 0),
-	), nil
+	)
+	lc.Append(
+		fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				return factory.RegisterSystemClient(ctx)
+			},
+		},
+	)
+	return factory, nil
 }
 
 func DCRedirectionPolicyProvider(cfg *config.Config) config.DCRedirectionPolicy {

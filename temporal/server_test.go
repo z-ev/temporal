@@ -43,10 +43,11 @@ func TestNewServer(t *testing.T) {
 	cfg, err := config.LoadConfig("development-sqlite", configDir, "")
 	require.NoError(t, err)
 	cfg.DynamicConfigClient.Filepath = path.Join(configDir, "dynamicconfig", "development-sql.yaml")
-	_, err = NewServer(
+	s, err := NewServer(
 		ForServices(Services),
 		WithConfig(cfg),
 	)
 	assert.NoError(t, err)
-	// TODO: add tests for Server.Run(), etc.
+
+	assert.NoError(t, s.Start())
 }

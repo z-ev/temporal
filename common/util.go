@@ -274,7 +274,7 @@ func CreateTaskResourceExhaustedReschedulePolicy() backoff.RetryPolicy {
 func CreateSdkClientFactoryRetryPolicy() backoff.RetryPolicy {
 	return backoff.NewExponentialRetryPolicy(sdkClientFactoryRetryInitialInterval).
 		WithMaximumInterval(sdkClientFactoryRetryMaxInterval).
-		WithExpirationInterval(sdkClientFactoryRetryExpirationInterval)
+		WithExpirationInterval(sdkClientFactoryRetryExpirationInterval).WithMaximumAttempts(1)
 }
 
 // IsPersistenceTransientError checks if the error is a transient persistence error
