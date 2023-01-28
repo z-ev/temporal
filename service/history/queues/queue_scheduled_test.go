@@ -86,8 +86,9 @@ func (s *scheduledQueueSuite) SetupTest() {
 
 	scheduler := NewPriorityScheduler(
 		PrioritySchedulerOptions{
-			WorkerCount:       dynamicconfig.GetIntPropertyFn(10),
-			EnableRateLimiter: dynamicconfig.GetBoolPropertyFn(true),
+			WorkerCount:                 dynamicconfig.GetIntPropertyFn(10),
+			EnableRateLimiter:           dynamicconfig.GetBoolPropertyFn(true),
+			EnableRateLimiterShadowMode: dynamicconfig.GetBoolPropertyFn(true),
 		},
 		NewSchedulerRateLimiter(
 			s.mockShard.GetConfig().TaskSchedulerNamespaceMaxQPS,
@@ -97,6 +98,7 @@ func (s *scheduledQueueSuite) SetupTest() {
 		),
 		s.mockShard.GetTimeSource(),
 		log.NewTestLogger(),
+		metrics.NoopMetricsHandler,
 	)
 	rescheduler := NewRescheduler(
 		scheduler,
