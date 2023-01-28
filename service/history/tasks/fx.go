@@ -28,6 +28,20 @@ import (
 	"go.uber.org/fx"
 )
 
-var Module = fx.Options(
-	fx.Provide(NewDefaultCategoryRegistry),
+func CategoryRegistryProvider() CategoryRegistry {
+	return &categoryRegistry{
+		categories: map[int32]Category{
+			CategoryIDTransfer:    CategoryTransfer,
+			CategoryIDTimer:       CategoryTimer,
+			CategoryIDReplication: CategoryReplication,
+			CategoryIDVisibility:  CategoryVisibility,
+		},
+	}
+}
+
+var Module = fx.Provide(
+	CategoryRegistryProvider,
+	func(registry CategoryRegistry) CategoryIndex {
+		return registry.BuildCategoryIndex()
+	},
 )

@@ -30,57 +30,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCategoryRegistryBuilder_RegisterCategory_DuplicateID(t *testing.T) {
+func TestCategoryIndex_GetCategoryByID_Found(t *testing.T) {
 	t.Parallel()
 
-	registry := newCategoryRegistry()
-	assert.NoError(t, registry.RegisterCategory(Category{
-		id:    100,
-		cType: CategoryTypeImmediate,
-		name:  "test1",
-	}))
-	err := registry.RegisterCategory(Category{
-		id:    100,
-		cType: CategoryTypeImmediate,
-		name:  "test2",
-	})
-	assert.ErrorIs(t, err, ErrCategoryAlreadyRegistered)
-	assert.ErrorContains(t, err, "100")
-	assert.ErrorContains(t, err, "test1")
-	assert.ErrorContains(t, err, "test2")
-}
-
-func TestCategoryRegistryBuilder_RegisterCategory_DifferentIDs(t *testing.T) {
-	t.Parallel()
-
-	registry := newCategoryRegistry()
-	assert.NoError(t, registry.RegisterCategory(Category{
-		id:    100,
-		cType: CategoryTypeImmediate,
-		name:  "test1",
-	}))
-	assert.NoError(t, registry.RegisterCategory(Category{
-		id:    101,
-		cType: CategoryTypeImmediate,
-		name:  "test1",
-	}))
-}
-
-func TestCategoryRegistryBuilder_BuildIndex(t *testing.T) {
-	t.Parallel()
-
-	registry := newCategoryRegistry()
-	assert.NoError(t, registry.RegisterCategory(Category{
-		id:    100,
-		cType: CategoryTypeImmediate,
-		name:  "test1",
-	}))
-	categoryIndex := registry.BuildCategoryIndex()
-	assert.Equal(t, map[int32]Category{
-		100: {
-			id:    100,
-			cType: CategoryTypeImmediate,
-			name:  "test1",
+	categoryIndex := &categoryIndex{
+		categories: map[int32]Category{
+			100: {
+				id: 100,
+			},
 		},
-	}, categoryIndex.GetCategories())
+	}
+	_, ok := categoryIndex.GetCategoryByID(100)
+	assert.True(t, ok)
+}
+
+func TestCategoryIndex_GetCategoryByID_NotFound(t *testing.T) {
+	t.Parallel()
+
+	categoryIndex := &categoryIndex{
+		categories: map[int32]Category{
+			100: {
+				id: 100,
+			},
+		},
+	}
+	_, ok := categoryIndex.GetCategoryByID(101)
+	assert.False(t, ok)
 }

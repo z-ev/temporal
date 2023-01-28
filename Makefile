@@ -233,7 +233,7 @@ copyright:
 
 lint:
 	@printf $(COLOR) "Run linters..."
-	@golangci-lint run --verbose --timeout 10m --fix=true --new-from-rev=HEAD~ --config=.golangci.yml
+	@golangci-lint run --verbose --timeout 10m --fix=false --new-from-rev=HEAD~ --config=.golangci.yml
 
 api-linter:
 	@printf $(COLOR) "Run api-linter..."

@@ -100,7 +100,7 @@ func (c *moduleTestCase) Run(t *testing.T) {
 	dependencies := getModuleDependencies(controller, c)
 
 	var hookParams QueueFactoriesLifetimeHookParams
-	var categoryRegistry tasks.CategoryRegistry
+	var categoryRegistry tasks.CategoryIndex
 	app := fx.New(
 		dependencies,
 		QueueModule,

@@ -118,7 +118,7 @@ type (
 		saManager                   searchattribute.Manager
 		clusterMetadata             cluster.Metadata
 		healthServer                *health.Server
-		taskCategoryRegistry        tasks.CategoryRegistry
+		taskCategoryIndex           tasks.CategoryIndex
 	}
 
 	NewAdminHandlerArgs struct {
@@ -148,7 +148,7 @@ type (
 		HealthServer                        *health.Server
 		EventSerializer                     serialization.Serializer
 		TimeSource                          clock.TimeSource
-		TaskCategoryRegistry                tasks.CategoryRegistry
+		TaskCategoryIndex                   tasks.CategoryIndex
 	}
 )
 
@@ -197,7 +197,7 @@ func NewAdminHandler(
 		saManager:                   args.SaManager,
 		clusterMetadata:             args.ClusterMetadata,
 		healthServer:                args.HealthServer,
-		taskCategoryRegistry:        args.TaskCategoryRegistry,
+		taskCategoryIndex:           args.TaskCategoryIndex,
 	}
 }
 
@@ -518,7 +518,7 @@ func (adh *AdminHandler) ListHistoryTasks(
 		return nil, errTaskRangeNotSet
 	}
 
-	taskCategory, ok := adh.taskCategoryRegistry.GetCategoryByID(int32(request.Category))
+	taskCategory, ok := adh.taskCategoryIndex.GetCategoryByID(int32(request.Category))
 	if !ok {
 		return nil, &serviceerror.InvalidArgument{
 			Message: fmt.Sprintf("unknown task category: %v", request.Category),

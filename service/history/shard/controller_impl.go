@@ -95,7 +95,7 @@ type (
 		archivalMetadata            archiver.ArchivalMetadata
 		hostInfoProvider            membership.HostInfoProvider
 		tracer                      trace.Tracer
-		taskCategoryRegistry        tasks.CategoryRegistry
+		taskCategoryIndex           tasks.CategoryIndex
 	}
 )
 
@@ -311,7 +311,7 @@ func (c *ControllerImpl) getOrCreateShardContext(shardID int32) (*ContextImpl, e
 		c.clusterMetadata,
 		c.archivalMetadata,
 		c.hostInfoProvider,
-		c.taskCategoryRegistry,
+		c.taskCategoryIndex,
 	)
 	if err != nil {
 		return nil, err

@@ -31,7 +31,6 @@ import (
 	"go.uber.org/fx"
 
 	"go.temporal.io/server/common"
-	"go.temporal.io/server/common/archiver"
 	"go.temporal.io/server/common/clock"
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/dynamicconfig"
@@ -94,8 +93,9 @@ type (
 )
 
 var QueueModule = fx.Options(
-	fx.Provide(QueueSchedulerRateLimiterProvider),
+	fx.Decorate(addArchivalTaskCategoryIfEnabled),
 	fx.Provide(
+		QueueSchedulerRateLimiterProvider,
 		fx.Annotated{
 			Group:  QueueFactoryFxGroup,
 			Target: NewTransferQueueFactory,
@@ -134,22 +134,17 @@ type additionalQueueFactories struct {
 // added to the `group:"queueFactory"` group. The factories are added to the group only if they are enabled, which
 // is why we must return a list here.
 func getOptionalQueueFactories(
-	archivalMetadata archiver.ArchivalMetadata,
-	registry tasks.CategoryRegistry,
+	index tasks.CategoryIndex,
 	params ArchivalQueueFactoryParams,
-) (additionalQueueFactories, error) {
-	if archivalMetadata.GetHistoryConfig().StaticClusterState() != archiver.ArchivalEnabled &&
-		archivalMetadata.GetVisibilityConfig().StaticClusterState() != archiver.ArchivalEnabled {
-		return additionalQueueFactories{}, nil
-	}
-	if err := registry.RegisterCategory(tasks.CategoryArchival); err != nil {
-		return additionalQueueFactories{}, err
+) additionalQueueFactories {
+	if _, ok := index.GetCategoryByID(tasks.CategoryIDArchival); !ok {
+		return additionalQueueFactories{}
 	}
 	return additionalQueueFactories{
 		Factories: []QueueFactory{
 			NewArchivalQueueFactory(params),
 		},
-	}, nil
+	}
 }
 
 func QueueSchedulerRateLimiterProvider(

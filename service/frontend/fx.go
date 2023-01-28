@@ -440,7 +440,7 @@ func AdminHandlerProvider(
 	healthServer *health.Server,
 	eventSerializer serialization.Serializer,
 	timeSource clock.TimeSource,
-	taskCategoryRegistry tasks.CategoryRegistry,
+	taskCategoryIndex tasks.CategoryIndex,
 ) *AdminHandler {
 	args := NewAdminHandlerArgs{
 		persistenceConfig,
@@ -469,7 +469,7 @@ func AdminHandlerProvider(
 		healthServer,
 		eventSerializer,
 		timeSource,
-		taskCategoryRegistry,
+		taskCategoryIndex,
 	}
 	return NewAdminHandler(args)
 }

@@ -96,7 +96,7 @@ type (
 		hostInfoProvider              membership.HostInfoProvider
 		controller                    shard.Controller
 		tracer                        trace.Tracer
-		taskCategoryRegistry          tasks.CategoryRegistry
+		taskCategoryIndex             tasks.CategoryIndex
 	}
 
 	NewHandlerArgs struct {
@@ -121,7 +121,7 @@ type (
 		EventNotifier                 events.Notifier
 		ReplicationTaskFetcherFactory replication.TaskFetcherFactory
 		TracerProvider                trace.TracerProvider
-		TaskCategoryRegistry          tasks.CategoryRegistry
+		TaskCategoryIndex             tasks.CategoryIndex
 	}
 )
 
@@ -574,7 +574,7 @@ func (h *Handler) RemoveTask(ctx context.Context, request *historyservice.Remove
 		category = tasks.CategoryReplication
 	default:
 		var ok bool
-		category, ok = h.taskCategoryRegistry.GetCategoryByID(int32(categoryID))
+		category, ok = h.taskCategoryIndex.GetCategoryByID(int32(categoryID))
 		if !ok {
 			return nil, serviceerror.NewInvalidArgument(fmt.Sprintf("Invalid task category ID: %v", categoryID))
 		}

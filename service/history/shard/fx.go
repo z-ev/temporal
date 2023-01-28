@@ -74,7 +74,7 @@ func ControllerProvider(
 	hostInfoProvider membership.HostInfoProvider,
 	engineFactory EngineFactory,
 	tracerProvider trace.TracerProvider,
-	taskCategoryRegistry tasks.CategoryRegistry,
+	taskCategoryIndex tasks.CategoryIndex,
 ) Controller {
 	return &ControllerImpl{
 		status:                      common.DaemonStatusInitialized,
@@ -102,6 +102,6 @@ func ControllerProvider(
 		hostInfoProvider:            hostInfoProvider,
 		engineFactory:               engineFactory,
 		tracer:                      tracerProvider.Tracer(consts.LibraryName),
-		taskCategoryRegistry:        taskCategoryRegistry,
+		taskCategoryIndex:           taskCategoryIndex,
 	}
 }

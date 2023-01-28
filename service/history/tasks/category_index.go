@@ -25,23 +25,28 @@
 package tasks
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
-	"go.uber.org/fx/fxtest"
+	"golang.org/x/exp/maps"
 )
 
-func TestModule(t *testing.T) {
-	var registry CategoryIndex
-	fxtest.New(t, Module, fx.Populate(&registry))
+// CategoryIndex is an immutable index of all registered Categories.
+// If you need to add a new Category, see CategoryRegistry.
+type CategoryIndex interface {
+	// GetCategories returns a deep copy of all registered Categories
+	GetCategories() map[int32]Category
+	// GetCategoryByID returns a registered Category with the same ID
+	// It returns a bool indicating whether the Category is found
+	GetCategoryByID(id int32) (Category, bool)
+}
 
-	require.NotNil(t, registry)
-	assert.Equal(t, map[int32]Category{
-		CategoryTransfer.ID():    CategoryTransfer,
-		CategoryTimer.ID():       CategoryTimer,
-		CategoryVisibility.ID():  CategoryVisibility,
-		CategoryReplication.ID(): CategoryReplication,
-	}, registry.GetCategories())
+type categoryIndex struct {
+	categories map[int32]Category
+}
+
+func (ci *categoryIndex) GetCategories() map[int32]Category {
+	return maps.Clone(ci.categories)
+}
+
+func (ci *categoryIndex) GetCategoryByID(id int32) (Category, bool) {
+	category, ok := ci.categories[id]
+	return category, ok
 }

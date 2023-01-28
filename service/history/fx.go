@@ -142,7 +142,7 @@ func HandlerProvider(args NewHandlerArgs) *Handler {
 		eventNotifier:                 args.EventNotifier,
 		replicationTaskFetcherFactory: args.ReplicationTaskFetcherFactory,
 		tracer:                        args.TracerProvider.Tracer(consts.LibraryName),
-		taskCategoryRegistry:          args.TaskCategoryRegistry,
+		taskCategoryIndex:             args.TaskCategoryIndex,
 	}
 
 	// prevent us from trying to serve requests before shard controller is started and ready

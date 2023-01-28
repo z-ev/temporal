@@ -110,8 +110,8 @@ type (
 		ExecutionMgr              *persistence.MockExecutionManager
 		PersistenceBean           *persistenceClient.MockBean
 
-		Logger               log.Logger
-		TaskCategoryRegistry tasks.CategoryRegistry
+		Logger            log.Logger
+		TaskCategoryIndex tasks.CategoryIndex
 	}
 )
 
@@ -184,13 +184,13 @@ func NewTest(
 
 		// other common resources
 
-		NamespaceCache:       namespace.NewMockRegistry(controller),
-		TimeSource:           clock.NewRealTimeSource(),
-		PayloadSerializer:    serialization.NewSerializer(),
-		MetricsHandler:       metricsHandler,
-		ArchivalMetadata:     archiver.NewMetadataMock(controller),
-		ArchiverProvider:     provider.NewMockArchiverProvider(controller),
-		TaskCategoryRegistry: tasks.NewDefaultCategoryRegistry(),
+		NamespaceCache:    namespace.NewMockRegistry(controller),
+		TimeSource:        clock.NewRealTimeSource(),
+		PayloadSerializer: serialization.NewSerializer(),
+		MetricsHandler:    metricsHandler,
+		ArchivalMetadata:  archiver.NewMetadataMock(controller),
+		ArchiverProvider:  provider.NewMockArchiverProvider(controller),
+		TaskCategoryIndex: tasks.CategoryRegistryProvider().BuildCategoryIndex(),
 
 		// membership infos
 
@@ -450,6 +450,6 @@ func (t *Test) RefreshNamespaceCache() {
 	t.NamespaceCache.Refresh()
 }
 
-func (t *Test) GetTaskCategoryRegistry() tasks.CategoryRegistry {
-	return t.TaskCategoryRegistry
+func (t *Test) GetTaskCategoryIndex() tasks.CategoryIndex {
+	return t.TaskCategoryIndex
 }

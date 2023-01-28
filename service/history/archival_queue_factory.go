@@ -27,6 +27,7 @@ package history
 import (
 	"go.uber.org/fx"
 
+	"go.temporal.io/server/common/archiver"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
@@ -185,4 +186,19 @@ func (f *archivalQueueFactory) newScheduledQueue(shard shard.Context, executor q
 		logger,
 		metricsHandler,
 	)
+}
+
+// addArchivalTaskCategoryIfEnabled adds the archival task category to the task category registry if archival is enabled
+// in the cluster's static config for either history or visibility.
+func addArchivalTaskCategoryIfEnabled(
+	archivalMetadata archiver.ArchivalMetadata,
+	registry tasks.CategoryRegistry,
+) (tasks.CategoryRegistry, error) {
+	if archivalMetadata.GetHistoryConfig().StaticClusterState() == archiver.ArchivalEnabled ||
+		archivalMetadata.GetVisibilityConfig().StaticClusterState() == archiver.ArchivalEnabled {
+		if err := registry.RegisterCategory(tasks.CategoryArchival); err != nil {
+			return nil, err
+		}
+	}
+	return registry, nil
 }

@@ -115,7 +115,7 @@ type (
 		clusterMetadata         cluster.Metadata
 		archivalMetadata        archiver.ArchivalMetadata
 		hostInfoProvider        membership.HostInfoProvider
-		taskCategoryRegistry    tasks.CategoryRegistry
+		taskCategoryIndex       tasks.CategoryIndex
 
 		// Context that lives for the lifetime of the shard context
 		lifecycleCtx    context.Context
@@ -1233,7 +1233,7 @@ func (s *ContextImpl) emitShardInfoMetricsLogsLocked() {
 	logWarnLagExceeded := false
 
 	for categoryID := range s.shardInfo.QueueAckLevels {
-		category, ok := s.taskCategoryRegistry.GetCategoryByID(categoryID)
+		category, ok := s.taskCategoryIndex.GetCategoryByID(categoryID)
 		if !ok {
 			continue
 		}
@@ -1264,7 +1264,7 @@ func (s *ContextImpl) emitShardInfoMetricsLogsLocked() {
 	if logWarnLagExceeded && s.config.EmitShardLagLog() {
 		ackLevelTags := make([]tag.Tag, 0, len(s.shardInfo.QueueAckLevels))
 		for categoryID, ackLevel := range s.shardInfo.QueueAckLevels {
-			category, ok := s.taskCategoryRegistry.GetCategoryByID(categoryID)
+			category, ok := s.taskCategoryIndex.GetCategoryByID(categoryID)
 			if !ok {
 				continue
 			}
@@ -1666,7 +1666,7 @@ func (s *ContextImpl) notifyQueueProcessor() {
 
 	now := s.timeSource.Now()
 	fakeTasks := make(map[tasks.Category][]tasks.Task)
-	for _, category := range s.taskCategoryRegistry.GetCategories() {
+	for _, category := range s.taskCategoryIndex.GetCategories() {
 		fakeTasks[category] = []tasks.Task{tasks.NewFakeTask(definition.WorkflowKey{}, category, now)}
 	}
 
@@ -1748,7 +1748,7 @@ func (s *ContextImpl) loadShardMetadata(ownershipChanged *bool) error {
 	remoteClusterInfos := make(map[string]*remoteClusterInfo)
 	var scheduledTaskMaxReadLevel time.Time
 	currentClusterName := s.GetClusterMetadata().GetCurrentClusterName()
-	taskCategories := s.taskCategoryRegistry.GetCategories()
+	taskCategories := s.taskCategoryIndex.GetCategories()
 	for clusterName, info := range s.GetClusterMetadata().GetAllClusterInfo() {
 		if !info.Enabled {
 			continue
@@ -1984,7 +1984,7 @@ func newContext(
 	clusterMetadata cluster.Metadata,
 	archivalMetadata archiver.ArchivalMetadata,
 	hostInfoProvider membership.HostInfoProvider,
-	taskCategoryRegistry tasks.CategoryRegistry,
+	taskCategoryIndex tasks.CategoryIndex,
 ) (*ContextImpl, error) {
 	hostIdentity := hostInfoProvider.HostInfo().Identity()
 
@@ -2012,7 +2012,7 @@ func newContext(
 		clusterMetadata:         clusterMetadata,
 		archivalMetadata:        archivalMetadata,
 		hostInfoProvider:        hostInfoProvider,
-		taskCategoryRegistry:    taskCategoryRegistry,
+		taskCategoryIndex:       taskCategoryIndex,
 		handoverNamespaces:      make(map[namespace.Name]*namespaceHandOverInfo),
 		lifecycleCtx:            lifecycleCtx,
 		lifecycleCancel:         lifecycleCancel,

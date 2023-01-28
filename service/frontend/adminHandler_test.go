@@ -163,7 +163,7 @@ func (s *adminHandlerSuite) SetupTest() {
 		health.NewServer(),
 		serialization.NewSerializer(),
 		clock.NewRealTimeSource(),
-		s.mockResource.GetTaskCategoryRegistry(),
+		s.mockResource.GetTaskCategoryIndex(),
 	}
 	s.mockMetadata.EXPECT().GetCurrentClusterName().Return(uuid.New()).AnyTimes()
 	s.handler = NewAdminHandler(args)

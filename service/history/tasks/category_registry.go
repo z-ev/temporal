@@ -27,33 +27,36 @@ package tasks
 import (
 	"errors"
 	"fmt"
-	"sync"
 
 	"golang.org/x/exp/maps"
 )
 
-// CategoryRegistry is a registry that contains all categories.
+// CategoryRegistry is a mutable registry of all registered Categories. If you want to add a new Category, and you are
+// using fx, you should write a decorator function such as:
+//
+//	func addMyCategory(registry tasks.CategoryRegistry) (tasks.CategoryRegistry, error) {
+//		err := registry.RegisterCategory(myCategory)
+//		return registry, err
+//	}
+//
+// and then add it to the fx graph using fx.Decorate(addMyCategory)
 type CategoryRegistry interface {
 	// RegisterCategory registers a Category
-	// It returns a wrapped ErrCategoryAlreadyRegistered error if the Category is already registered
+	// It returns a wrapped ErrCategoryAlreadyRegistered error if the Category is already registered.
+	// This method is not thread-safe, but it doesn't need to be if you are using fx.
 	RegisterCategory(category Category) error
-	// GetCategories returns a deep copy of all registered Categories
-	GetCategories() map[int32]Category
-	// GetCategoryByID returns a registered Category with the same ID
-	// It returns a bool indicating whether the Category is found
-	GetCategoryByID(id int32) (Category, bool)
+	// BuildCategoryIndex builds a CategoryIndex.
+	// If you call RegisterCategory after this method is called, existing CategoryIndex objects will not be updated,
+	// but subsequent calls to BuildCategoryIndex will return a CategoryIndex with the new Category.
+	BuildCategoryIndex() CategoryIndex
 }
 
-// NewDefaultCategoryRegistry returns a CategoryRegistry with all default Categories registered.
-func NewDefaultCategoryRegistry() CategoryRegistry {
-	return &categoryRegistry{categories: map[int32]Category{
-		CategoryTransfer.ID():    CategoryTransfer,
-		CategoryTimer.ID():       CategoryTimer,
-		CategoryVisibility.ID():  CategoryVisibility,
-		CategoryReplication.ID(): CategoryReplication,
-	}}
-}
+var (
+	// ErrCategoryAlreadyRegistered is returned when a Category is already registered
+	ErrCategoryAlreadyRegistered = errors.New("category already registered")
+)
 
+// newCategoryRegistry creates a new CategoryRegistry with no registered Categories
 func newCategoryRegistry() CategoryRegistry {
 	return &categoryRegistry{
 		categories: make(map[int32]Category),
@@ -61,23 +64,15 @@ func newCategoryRegistry() CategoryRegistry {
 }
 
 type categoryRegistry struct {
-	lock       sync.RWMutex
 	categories map[int32]Category
 }
 
-var (
-	ErrorCategoryAlreadyRegistered = errors.New("category already registered")
-)
-
 func (r *categoryRegistry) RegisterCategory(category Category) error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
 	id := category.ID()
 	if old, ok := r.categories[id]; ok {
 		return fmt.Errorf(
 			"%w: can't register %+v as because %+v is already registered for id %d",
-			ErrorCategoryAlreadyRegistered,
+			ErrCategoryAlreadyRegistered,
 			category,
 			old,
 			id,
@@ -87,17 +82,8 @@ func (r *categoryRegistry) RegisterCategory(category Category) error {
 	return nil
 }
 
-func (r *categoryRegistry) GetCategories() map[int32]Category {
-	r.lock.RLock()
-	defer r.lock.RUnlock()
-
-	return maps.Clone(r.categories)
-}
-
-func (r *categoryRegistry) GetCategoryByID(id int32) (Category, bool) {
-	r.lock.RLock()
-	defer r.lock.RUnlock()
-
-	category, ok := r.categories[id]
-	return category, ok
+func (r *categoryRegistry) BuildCategoryIndex() CategoryIndex {
+	return &categoryIndex{
+		categories: maps.Clone(r.categories),
+	}
 }
