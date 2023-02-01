@@ -69,7 +69,7 @@ func NewSchedulerRateLimiter(
 			)
 		} else {
 			requestRateLimiter = quotas.NewRequestRateLimiterAdapter(
-				quotas.NewDefaultOutgoingRateLimiter(hostRateFn),
+				quotas.NewDefaultIncomingRateLimiter(hostRateFn),
 			)
 		}
 		priorityToRateLimiters[int(priority)] = requestRateLimiter
@@ -87,11 +87,11 @@ func newHighPriorityTaskRequestRateLimiter(
 	hostRateFn quotas.RateFn,
 ) quotas.RequestRateLimiter {
 	hostRequestRateLimiter := quotas.NewRequestRateLimiterAdapter(
-		quotas.NewDefaultOutgoingRateLimiter(hostRateFn),
+		quotas.NewDefaultIncomingRateLimiter(hostRateFn),
 	)
 	namespaceRequestRateLimiterFn := func(req quotas.Request) quotas.RequestRateLimiter {
 		return quotas.NewRequestRateLimiterAdapter(
-			quotas.NewDefaultOutgoingRateLimiter(func() float64 {
+			quotas.NewDefaultIncomingRateLimiter(func() float64 {
 				if namespaceQPS := float64(namespaceMaxQPS(req.Caller)); namespaceQPS > 0 {
 					return namespaceQPS
 				}
