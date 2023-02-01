@@ -114,7 +114,8 @@ type (
 
 		key              K
 		rateLimitRequest quotas.Request
-		metricsTags      []metrics.Tag
+		// metricsTags      []metrics.Tag
+		metricsHandler metrics.Handler
 
 		throttled bool
 	}
@@ -155,8 +156,8 @@ func NewInterleavedWeightedRoundRobinScheduler[T Task, K comparable](
 	rlConfig := atomic.Value{}
 	rlConfig.Store(
 		rateLimiterConfig{
-			enableThrottle:   options.EnableRateLimiter(),
-			enableShadowMode: options.EnableRateLimiterShadowMode(),
+			enableThrottle:   false, //options.EnableRateLimiter(),
+			enableShadowMode: false, // options.EnableRateLimiterShadowMode(),
 		},
 	)
 
@@ -306,8 +307,9 @@ func (s *InterleavedWeightedRoundRobinScheduler[T, K]) flattenWeightedChannelsLo
 			WeightedChannel:  weightedChan,
 			key:              channelKey,
 			rateLimitRequest: s.options.ChannelQuotaRequestFn(channelKey),
-			metricsTags:      s.options.TaskChannelMetricTagsFn(channelKey),
-			throttled:        false,
+			// metricsTags:      s.options.TaskChannelMetricTagsFn(channelKey),
+			metricsHandler: s.metricsHandler.WithTags(s.options.TaskChannelMetricTagsFn(channelKey)...),
+			throttled:      false,
 		})
 	}
 	sort.Slice(weightedChannels, func(i, j int) bool {
@@ -463,8 +465,9 @@ LoopDispatch:
 			continue LoopDispatch
 		}
 
+		channel.metricsHandler.Counter(metrics.TaskSchedulerRequest.GetMetricName()).Record(1)
 		if !rateLimiter.Allow(s.timeSource.Now(), channel.rateLimitRequest) {
-			s.metricsHandler.Counter(metrics.TaskSchedulerThrottled.GetMetricName()).Record(1, channel.metricsTags...)
+			channel.metricsHandler.Counter(metrics.TaskSchedulerThrottled.GetMetricName()).Record(1)
 
 			if rateLimiterConfig.enableThrottle {
 				channel.throttled = true
@@ -477,6 +480,8 @@ LoopDispatch:
 			}
 
 			// throttled, but in shadow mode, do not actually throttle task dispatching
+		} else {
+			channel.metricsHandler.Counter(metrics.TaskSchedulerPassed.GetMetricName()).Record(1)
 		}
 
 		select {
@@ -484,6 +489,7 @@ LoopDispatch:
 			s.fifoScheduler.Submit(task)
 			taskDispatched++
 		default:
+			s.logger.Warn("Task channel should not be empty")
 			continue LoopDispatch
 		}
 	}
@@ -495,18 +501,28 @@ func (s *InterleavedWeightedRoundRobinScheduler[T, K]) tryDispatchTaskDirectly(
 	task T,
 ) bool {
 	rateLimiterConfig := s.getRateLimiterConfig()
+	now := s.timeSource.Now()
+	reservation := quotas.NoopReservation
+	tags := s.options.TaskChannelMetricTagsFn(channelKey)
+	s.metricsHandler.Counter(metrics.TaskSchedulerRequest.GetMetricName()).Record(1, tags...)
+
 	if rateLimiterConfig.enableThrottle || rateLimiterConfig.enableShadowMode {
-		if !s.rateLimiter.Allow(
-			s.timeSource.Now(),
+		reservation = s.rateLimiter.Reserve(
+			now,
 			s.options.ChannelQuotaRequestFn(channelKey),
-		) {
-			s.metricsHandler.Counter(metrics.TaskSchedulerThrottled.GetMetricName()).Record(1, s.options.TaskChannelMetricTagsFn(channelKey)...)
+		)
+
+		if reservation.DelayFrom(now) != 0 {
+			reservation.CancelAt(now)
+			s.metricsHandler.Counter(metrics.TaskSchedulerThrottled.GetMetricName()).Record(1, tags...)
 
 			if rateLimiterConfig.enableThrottle {
 				return false
 			}
 
 			// throttled, but in shadow mode, continue to dispatch
+		} else {
+			s.metricsHandler.Counter(metrics.TaskSchedulerPassed.GetMetricName()).Record(1, tags...)
 		}
 
 		// not throttled, continue to dispatch
@@ -515,6 +531,8 @@ func (s *InterleavedWeightedRoundRobinScheduler[T, K]) tryDispatchTaskDirectly(
 	dispatched := s.fifoScheduler.TrySubmit(task)
 	if dispatched {
 		atomic.AddInt64(&s.numInflightTask, -1)
+	} else {
+		reservation.CancelAt(now)
 	}
 	return dispatched
 }
