@@ -71,9 +71,9 @@ func (c *metricClient) AddActivityTask(
 	opts ...grpc.CallOption,
 ) (_ *matchingservice.AddActivityTaskResponse, retError error) {
 
-	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientAddActivityTaskScope)
+	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientAddActivityTaskScope, tag.Value(request))
 	defer func() {
-		c.finishMetricsRecording(scope, stopwatch, retError)
+		c.finishMetricsRecording(scope, stopwatch, retError, metrics.MatchingClientAddActivityTaskScope, tag.Value(request))
 	}()
 
 	c.emitForwardedSourceStats(
@@ -91,9 +91,9 @@ func (c *metricClient) AddWorkflowTask(
 	opts ...grpc.CallOption,
 ) (_ *matchingservice.AddWorkflowTaskResponse, retError error) {
 
-	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientAddWorkflowTaskScope)
+	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientAddWorkflowTaskScope, tag.Value(request))
 	defer func() {
-		c.finishMetricsRecording(scope, stopwatch, retError)
+		c.finishMetricsRecording(scope, stopwatch, retError, metrics.MatchingClientAddWorkflowTaskScope, tag.Value(request))
 	}()
 
 	c.emitForwardedSourceStats(
@@ -111,9 +111,9 @@ func (c *metricClient) PollActivityTaskQueue(
 	opts ...grpc.CallOption,
 ) (_ *matchingservice.PollActivityTaskQueueResponse, retError error) {
 
-	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientPollActivityTaskQueueScope)
+	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientPollActivityTaskQueueScope, tag.Value(request))
 	defer func() {
-		c.finishMetricsRecording(scope, stopwatch, retError)
+		c.finishMetricsRecording(scope, stopwatch, retError, metrics.MatchingClientPollActivityTaskQueueScope, tag.Value(request))
 	}()
 
 	if request.PollRequest != nil {
@@ -133,9 +133,9 @@ func (c *metricClient) PollWorkflowTaskQueue(
 	opts ...grpc.CallOption,
 ) (_ *matchingservice.PollWorkflowTaskQueueResponse, retError error) {
 
-	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientPollWorkflowTaskQueueScope)
+	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientPollWorkflowTaskQueueScope, tag.Value(request))
 	defer func() {
-		c.finishMetricsRecording(scope, stopwatch, retError)
+		c.finishMetricsRecording(scope, stopwatch, retError, metrics.MatchingClientPollWorkflowTaskQueueScope, tag.Value(request))
 	}()
 
 	if request.PollRequest != nil {
@@ -155,9 +155,9 @@ func (c *metricClient) QueryWorkflow(
 	opts ...grpc.CallOption,
 ) (_ *matchingservice.QueryWorkflowResponse, retError error) {
 
-	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientQueryWorkflowScope)
+	scope, stopwatch := c.startMetricsRecording(ctx, metrics.MatchingClientQueryWorkflowScope, tag.Value(request))
 	defer func() {
-		c.finishMetricsRecording(scope, stopwatch, retError)
+		c.finishMetricsRecording(scope, stopwatch, retError, metrics.MatchingClientQueryWorkflowScope, tag.Value(request))
 	}()
 
 	c.emitForwardedSourceStats(
@@ -192,10 +192,12 @@ func (c *metricClient) emitForwardedSourceStats(
 func (c *metricClient) startMetricsRecording(
 	ctx context.Context,
 	operation string,
+	requestValueTag tag.ZapTag,
 ) (metrics.Handler, time.Time) {
 	caller := headers.GetCallerInfo(ctx).CallerName
 	handler := c.metricsHandler.WithTags(metrics.OperationTag(operation), metrics.NamespaceTag(caller), metrics.ServiceRoleTag(metrics.MatchingRoleTagValue))
 	handler.Counter(metrics.ClientRequests.GetMetricName()).Record(1)
+	c.logger.Debug("matching client request", tag.Operation(operation), requestValueTag)
 	return handler, time.Now().UTC()
 }
 
@@ -203,6 +205,8 @@ func (c *metricClient) finishMetricsRecording(
 	metricsHandler metrics.Handler,
 	startTime time.Time,
 	err error,
+	operation string,
+	requestValueTag tag.ZapTag,
 ) {
 	if err != nil {
 		switch err.(type) {
@@ -214,6 +218,7 @@ func (c *metricClient) finishMetricsRecording(
 			*serviceerror.NamespaceNotFound,
 			*serviceerror.WorkflowExecutionAlreadyStarted:
 			// noop - not interest and too many logs
+			c.logger.Debug("matching client encountered error", tag.Error(err), tag.Operation(operation), requestValueTag)
 		default:
 			c.throttledLogger.Info("matching client encountered error", tag.Error(err), tag.ErrorType(err))
 		}

@@ -37,6 +37,7 @@ import (
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/cluster"
 	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/membership"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/namespace"
@@ -134,6 +135,9 @@ func (h *Handler) AddActivityTask(
 	request *matchingservice.AddActivityTaskRequest,
 ) (_ *matchingservice.AddActivityTaskResponse, retError error) {
 	defer log.CapturePanic(h.logger, &retError)
+
+	h.logger.Debug("Received AddActivityTask", tag.Value(request))
+
 	startT := time.Now().UTC()
 	hCtx := h.newHandlerContext(
 		ctx,
@@ -151,6 +155,8 @@ func (h *Handler) AddActivityTask(
 		hCtx.metricsHandler.Timer(metrics.SyncMatchLatencyPerTaskQueue.GetMetricName()).Record(time.Since(startT))
 	}
 
+	h.logger.Debug("Completed AddActivityTask", tag.Error(err), tag.Value(request), tag.NewBoolTag("sync-match", syncMatch))
+
 	return &matchingservice.AddActivityTaskResponse{}, err
 }
 
@@ -160,6 +166,9 @@ func (h *Handler) AddWorkflowTask(
 	request *matchingservice.AddWorkflowTaskRequest,
 ) (_ *matchingservice.AddWorkflowTaskResponse, retError error) {
 	defer log.CapturePanic(h.logger, &retError)
+
+	h.logger.Debug("Received AddWorkflowTask", tag.Value(request))
+
 	startT := time.Now().UTC()
 	hCtx := h.newHandlerContext(
 		ctx,
@@ -176,6 +185,9 @@ func (h *Handler) AddWorkflowTask(
 	if syncMatch {
 		hCtx.metricsHandler.Timer(metrics.SyncMatchLatencyPerTaskQueue.GetMetricName()).Record(time.Since(startT))
 	}
+
+	h.logger.Debug("Completed AddWorkflowTask", tag.Error(err), tag.Value(request), tag.NewBoolTag("sync-match", syncMatch))
+
 	return &matchingservice.AddWorkflowTaskResponse{}, err
 }
 
