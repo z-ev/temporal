@@ -36,6 +36,8 @@ import (
 	"go.temporal.io/api/workflowservice/v1"
 
 	"go.temporal.io/server/api/matchingservice/v1"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/primitives/timestamp"
 	"go.temporal.io/server/common/quotas"
 )
@@ -66,6 +68,8 @@ type (
 		// todo: implement a rate limiter that automatically
 		// adjusts rate based on ServiceBusy errors from API calls
 		limiter *quotas.DynamicRateLimiterImpl
+
+		logger log.Logger
 	}
 	// ForwarderReqToken is the token that must be acquired before
 	// making forwarder API calls. This type contains the state
@@ -96,6 +100,7 @@ func newForwarder(
 	taskQueueID *taskQueueID,
 	kind enumspb.TaskQueueKind,
 	client matchingservice.MatchingServiceClient,
+	logger log.Logger,
 ) *Forwarder {
 	fwdr := &Forwarder{
 		cfg:                   cfg,
@@ -107,6 +112,7 @@ func newForwarder(
 		limiter: quotas.NewDefaultOutgoingRateLimiter(
 			func() float64 { return float64(cfg.ForwarderMaxRatePerSecond()) },
 		),
+		logger: logger,
 	}
 	fwdr.addReqToken.Store(newForwarderReqToken(cfg.ForwarderMaxOutstandingTasks()))
 	fwdr.pollReqToken.Store(newForwarderReqToken(cfg.ForwarderMaxOutstandingPolls()))
@@ -288,6 +294,9 @@ func (fwdr *Forwarder) refreshTokenC(value *atomic.Value, curr *int32, maxLimit 
 func (fwdr *Forwarder) handleErr(err error) error {
 	if _, ok := err.(*serviceerror.ResourceExhausted); ok {
 		return errForwarderSlowDown
+	}
+	if err != nil {
+		fwdr.logger.Error("Handle forwarder error", tag.Error(err))
 	}
 	return err
 }

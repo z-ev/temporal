@@ -42,6 +42,7 @@ import (
 	persistencespb "go.temporal.io/server/api/persistence/v1"
 	"go.temporal.io/server/common"
 	"go.temporal.io/server/common/convert"
+	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/namespace"
 	"go.temporal.io/server/common/tqname"
 )
@@ -69,7 +70,7 @@ func (t *ForwarderTestSuite) SetupTest() {
 		ForwarderMaxOutstandingTasks: func() int { return 1 },
 	}
 	t.taskQueue = newTestTaskQueueID("fwdr", "tl0", enumspb.TASK_QUEUE_TYPE_WORKFLOW)
-	t.fwdr = newForwarder(t.cfg, t.taskQueue, enumspb.TASK_QUEUE_KIND_NORMAL, t.client)
+	t.fwdr = newForwarder(t.cfg, t.taskQueue, enumspb.TASK_QUEUE_KIND_NORMAL, t.client, log.NewNoopLogger())
 }
 
 func (t *ForwarderTestSuite) TearDownTest() {

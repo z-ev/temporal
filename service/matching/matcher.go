@@ -32,6 +32,7 @@ import (
 
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/api/matchingservice/v1"
+	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/quotas"
 )
@@ -61,7 +62,8 @@ type TaskMatcher struct {
 
 	fwdr           *Forwarder
 	metricsHandler metrics.Handler // namespace metric scope
-	numPartitions  func() int      // number of task queue partitions
+	logger         log.Logger
+	numPartitions  func() int // number of task queue partitions
 }
 
 const (
@@ -72,7 +74,7 @@ const (
 // newTaskMatcher returns an task matcher instance. The returned instance can be
 // used by task producers and consumers to find a match. Both sync matches and non-sync
 // matches should use this implementation
-func newTaskMatcher(config *taskQueueConfig, fwdr *Forwarder, metricsHandler metrics.Handler) *TaskMatcher {
+func newTaskMatcher(config *taskQueueConfig, fwdr *Forwarder, metricsHandler metrics.Handler, logger log.Logger) *TaskMatcher {
 	dynamicRateBurst := quotas.NewMutableRateBurst(
 		defaultTaskDispatchRPS,
 		int(defaultTaskDispatchRPS),
@@ -96,6 +98,7 @@ func newTaskMatcher(config *taskQueueConfig, fwdr *Forwarder, metricsHandler met
 		dynamicRateLimiter: dynamicRateLimiter,
 		rateLimiter:        limiter,
 		metricsHandler:     metricsHandler,
+		logger:             logger,
 		fwdr:               fwdr,
 		taskC:              make(chan *internalTask),
 		queryTaskC:         make(chan *internalTask),
@@ -353,6 +356,7 @@ func (tm *TaskMatcher) poll(ctx context.Context, queryOnly bool) (*internalTask,
 	select {
 	case <-ctx.Done():
 		tm.metricsHandler.Counter(metrics.PollTimeoutPerTaskQueueCounter.GetMetricName()).Record(1)
+		tm.logger.Debug("poll_timeouts")
 		return nil, ErrNoTasks
 	default:
 	}
@@ -362,8 +366,10 @@ func (tm *TaskMatcher) poll(ctx context.Context, queryOnly bool) (*internalTask,
 	case task := <-taskC:
 		if task.responseC != nil {
 			tm.metricsHandler.Counter(metrics.PollSuccessWithSyncPerTaskQueueCounter.GetMetricName()).Record(1)
+			tm.logger.Debug("poll_success_sync")
 		}
 		tm.metricsHandler.Counter(metrics.PollSuccessPerTaskQueueCounter.GetMetricName()).Record(1)
+		tm.logger.Debug("poll_success")
 		return task, nil
 	case task := <-queryTaskC:
 		tm.metricsHandler.Counter(metrics.PollSuccessWithSyncPerTaskQueueCounter.GetMetricName()).Record(1)
@@ -376,12 +382,15 @@ func (tm *TaskMatcher) poll(ctx context.Context, queryOnly bool) (*internalTask,
 	select {
 	case <-ctx.Done():
 		tm.metricsHandler.Counter(metrics.PollTimeoutPerTaskQueueCounter.GetMetricName()).Record(1)
+		tm.logger.Debug("poll_timeouts")
 		return nil, ErrNoTasks
 	case task := <-taskC:
 		if task.responseC != nil {
 			tm.metricsHandler.Counter(metrics.PollSuccessWithSyncPerTaskQueueCounter.GetMetricName()).Record(1)
+			tm.logger.Debug("poll_success_sync")
 		}
 		tm.metricsHandler.Counter(metrics.PollSuccessPerTaskQueueCounter.GetMetricName()).Record(1)
+		tm.logger.Debug("poll_success")
 		return task, nil
 	case task := <-queryTaskC:
 		tm.metricsHandler.Counter(metrics.PollSuccessWithSyncPerTaskQueueCounter.GetMetricName()).Record(1)
@@ -399,12 +408,15 @@ func (tm *TaskMatcher) poll(ctx context.Context, queryOnly bool) (*internalTask,
 	select {
 	case <-ctx.Done():
 		tm.metricsHandler.Counter(metrics.PollTimeoutPerTaskQueueCounter.GetMetricName()).Record(1)
+		tm.logger.Debug("poll_timeouts")
 		return nil, ErrNoTasks
 	case task := <-taskC:
 		if task.responseC != nil {
 			tm.metricsHandler.Counter(metrics.PollSuccessWithSyncPerTaskQueueCounter.GetMetricName()).Record(1)
+			tm.logger.Debug("poll_success_sync")
 		}
 		tm.metricsHandler.Counter(metrics.PollSuccessPerTaskQueueCounter.GetMetricName()).Record(1)
+		tm.logger.Debug("poll_success")
 		return task, nil
 	case task := <-queryTaskC:
 		tm.metricsHandler.Counter(metrics.PollSuccessWithSyncPerTaskQueueCounter.GetMetricName()).Record(1)

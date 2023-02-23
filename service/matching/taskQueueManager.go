@@ -251,9 +251,9 @@ func newTaskQueueManager(
 
 	var fwdr *Forwarder
 	if tlMgr.isFowardingAllowed(taskQueue, taskQueueKind) {
-		fwdr = newForwarder(&taskQueueConfig.forwarderConfig, taskQueue, taskQueueKind, e.matchingClient)
+		fwdr = newForwarder(&taskQueueConfig.forwarderConfig, taskQueue, taskQueueKind, e.matchingClient, logger)
 	}
-	tlMgr.matcher = newTaskMatcher(taskQueueConfig, fwdr, tlMgr.taggedMetricsHandler)
+	tlMgr.matcher = newTaskMatcher(taskQueueConfig, fwdr, tlMgr.taggedMetricsHandler, logger)
 	for _, opt := range opts {
 		opt(tlMgr)
 	}

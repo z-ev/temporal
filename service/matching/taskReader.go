@@ -122,6 +122,7 @@ dispatchLoop:
 			if !ok { // Task queue getTasks pump is shutdown
 				break dispatchLoop
 			}
+			tr.logger().Debug("Dispatch buffered task", tag.TaskID(taskInfo.TaskId))
 			task := newInternalTask(taskInfo, tr.tlMgr.completeTask, enumsspb.TASK_SOURCE_DB_BACKLOG, "", false)
 			for {
 				// We checked if the task was expired before putting it in the buffer, but it
