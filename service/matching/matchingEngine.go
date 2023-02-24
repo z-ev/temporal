@@ -289,7 +289,11 @@ func (e *matchingEngineImpl) AddWorkflowTask(
 		CreateTime:       now,
 	}
 
-	e.logger.Debug("AddWorkflowTask to task queue manager", tag.Value(addRequest), tag.Address(fmt.Sprintf("%p", tqm)))
+	e.logger.Debug("AddWorkflowTask to task queue manager",
+		tag.Value(addRequest),
+		tag.Address(fmt.Sprintf("%p", tqm)),
+		tag.NewStringTag("engine-address", fmt.Sprintf("%p", e)),
+	)
 	return tqm.AddTask(hCtx.Context, addTaskParams{
 		execution:     addRequest.Execution,
 		taskInfo:      taskInfo,
@@ -864,7 +868,11 @@ func (e *matchingEngineImpl) getTask(
 		return nil, err
 	}
 
-	e.logger.Debug("GetTask from task queue manager", tag.Address(fmt.Sprintf("%p", tlMgr)))
+	e.logger.Debug("GetTask from task queue manager",
+		tag.Address(fmt.Sprintf("%p", tlMgr)),
+		tag.Value(*taskQueue),
+		tag.NewStringTag("engine-address", fmt.Sprintf("%p", e)),
+	)
 	return tlMgr.GetTask(ctx, maxDispatchPerSecond)
 }
 

@@ -26,6 +26,7 @@ package matching
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -163,7 +164,11 @@ func (h *Handler) AddWorkflowTask(
 ) (_ *matchingservice.AddWorkflowTaskResponse, retError error) {
 	defer log.CapturePanic(h.logger, &retError)
 
-	h.logger.Debug("Received AddWorkflowTask", tag.Value(request))
+	h.logger.Debug("Received AddWorkflowTask",
+		tag.Value(request),
+		tag.NewStringTag("engine-address", fmt.Sprintf("%p", h.engine)),
+		tag.ClusterName(h.engine.(*matchingEngineImpl).clusterMeta.GetCurrentClusterName()),
+	)
 
 	startT := time.Now().UTC()
 	hCtx := h.newHandlerContext(
@@ -223,7 +228,11 @@ func (h *Handler) PollWorkflowTaskQueue(
 ) (_ *matchingservice.PollWorkflowTaskQueueResponse, retError error) {
 	defer log.CapturePanic(h.logger, &retError)
 
-	h.logger.Debug("Received PollWorkflowTaskQueue for taskQueue", tag.Value(request))
+	h.logger.Debug("Received PollWorkflowTaskQueue for taskQueue",
+		tag.Value(request),
+		tag.NewStringTag("engine-address", fmt.Sprintf("%p", h.engine)),
+		tag.ClusterName(h.engine.(*matchingEngineImpl).clusterMeta.GetCurrentClusterName()),
+	)
 
 	hCtx := h.newHandlerContext(
 		ctx,

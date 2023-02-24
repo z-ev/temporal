@@ -160,6 +160,15 @@ func newMatchingEngine(
 	}
 }
 
+func (s *matchingEngineSuite) TestDummy() {
+	tq, _ := newTaskQueueID(
+		"32049b68-7872-4094-8e63-d0dd59896a83",
+		"default-worker-tq",
+		enumspb.TASK_QUEUE_TYPE_WORKFLOW,
+	)
+	fmt.Println(*tq)
+}
+
 func (s *matchingEngineSuite) TestAckManager() {
 	m := newAckManager(s.logger)
 	m.setAckLevel(100)
