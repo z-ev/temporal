@@ -359,6 +359,7 @@ func (c *taskQueueManagerImpl) AddTask(
 
 	if namespaceEntry.ActiveInCluster(c.clusterMeta.GetCurrentClusterName()) {
 		syncMatch, err := c.trySyncMatch(ctx, params)
+		c.logger.Debug("Sync match result", tag.Error(err), tag.NewBoolTag("sync-match", syncMatch), tag.Value(taskInfo))
 		if syncMatch {
 			return syncMatch, err
 		}

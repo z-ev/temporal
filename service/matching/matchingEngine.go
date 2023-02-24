@@ -289,6 +289,7 @@ func (e *matchingEngineImpl) AddWorkflowTask(
 		CreateTime:       now,
 	}
 
+	e.logger.Debug("AddWorkflowTask to task queue manager", tag.Value(addRequest), tag.Address(fmt.Sprintf("%p", tqm)))
 	return tqm.AddTask(hCtx.Context, addTaskParams{
 		execution:     addRequest.Execution,
 		taskInfo:      taskInfo,
@@ -347,12 +348,12 @@ func (e *matchingEngineImpl) AddActivityTask(
 func (e *matchingEngineImpl) PollWorkflowTaskQueue(
 	hCtx *handlerContext,
 	req *matchingservice.PollWorkflowTaskQueueRequest,
-) (*matchingservice.PollWorkflowTaskQueueResponse, error) {
+) (resp *matchingservice.PollWorkflowTaskQueueResponse, retErr error) {
 	namespaceID := namespace.ID(req.GetNamespaceId())
 	pollerID := req.GetPollerId()
 	request := req.PollRequest
 	taskQueueName := request.TaskQueue.GetName()
-	e.logger.Debug("Received PollWorkflowTaskQueue for taskQueue", tag.WorkflowTaskQueueName(taskQueueName))
+	// e.logger.Debug("Received PollWorkflowTaskQueue for taskQueue", tag.WorkflowTaskQueueName(taskQueueName), tag.Value(req))
 pollLoop:
 	for {
 		err := common.IsValidContext(hCtx.Context)
@@ -469,7 +470,7 @@ func (e *matchingEngineImpl) PollActivityTaskQueue(
 	pollerID := req.GetPollerId()
 	request := req.PollRequest
 	taskQueueName := request.TaskQueue.GetName()
-	e.logger.Debug("Received PollActivityTaskQueue for taskQueue", tag.Name(taskQueueName))
+	// e.logger.Debug("Received PollActivityTaskQueue for taskQueue", tag.Name(taskQueueName))
 pollLoop:
 	for {
 		err := common.IsValidContext(hCtx.Context)
@@ -862,6 +863,8 @@ func (e *matchingEngineImpl) getTask(
 	if err != nil {
 		return nil, err
 	}
+
+	e.logger.Debug("GetTask from task queue manager", tag.Address(fmt.Sprintf("%p", tlMgr)))
 	return tlMgr.GetTask(ctx, maxDispatchPerSecond)
 }
 

@@ -26,6 +26,7 @@ package matching
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ import (
 	enumsspb "go.temporal.io/server/api/enums/v1"
 	"go.temporal.io/server/api/matchingservice/v1"
 	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/log/tag"
 	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/quotas"
 )
@@ -143,6 +145,7 @@ func (tm *TaskMatcher) Offer(ctx context.Context, task *internalTask) (bool, err
 		}
 	}
 
+	tm.logger.Debug("Offer task on taskC", tag.Address(fmt.Sprintf("%p", tm.taskC)), tag.Value(task))
 	select {
 	case tm.taskC <- task: // poller picked up the task
 		if task.responseC != nil {
@@ -353,6 +356,7 @@ func (tm *TaskMatcher) poll(ctx context.Context, queryOnly bool) (*internalTask,
 	// must include all the previous cases.
 
 	// 1. ctx.Done
+	tm.logger.Debug("Poll task on taskC", tag.Address(fmt.Sprintf("%p", taskC)))
 	select {
 	case <-ctx.Done():
 		tm.metricsHandler.Counter(metrics.PollTimeoutPerTaskQueueCounter.GetMetricName()).Record(1)

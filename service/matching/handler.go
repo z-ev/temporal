@@ -136,8 +136,6 @@ func (h *Handler) AddActivityTask(
 ) (_ *matchingservice.AddActivityTaskResponse, retError error) {
 	defer log.CapturePanic(h.logger, &retError)
 
-	h.logger.Debug("Received AddActivityTask", tag.Value(request))
-
 	startT := time.Now().UTC()
 	hCtx := h.newHandlerContext(
 		ctx,
@@ -154,8 +152,6 @@ func (h *Handler) AddActivityTask(
 	if syncMatch {
 		hCtx.metricsHandler.Timer(metrics.SyncMatchLatencyPerTaskQueue.GetMetricName()).Record(time.Since(startT))
 	}
-
-	h.logger.Debug("Completed AddActivityTask", tag.Error(err), tag.Value(request), tag.NewBoolTag("sync-match", syncMatch))
 
 	return &matchingservice.AddActivityTaskResponse{}, err
 }
@@ -226,6 +222,9 @@ func (h *Handler) PollWorkflowTaskQueue(
 	request *matchingservice.PollWorkflowTaskQueueRequest,
 ) (_ *matchingservice.PollWorkflowTaskQueueResponse, retError error) {
 	defer log.CapturePanic(h.logger, &retError)
+
+	h.logger.Debug("Received PollWorkflowTaskQueue for taskQueue", tag.Value(request))
+
 	hCtx := h.newHandlerContext(
 		ctx,
 		namespace.ID(request.GetNamespaceId()),
@@ -246,6 +245,7 @@ func (h *Handler) PollWorkflowTaskQueue(
 	}
 
 	response, err := h.engine.PollWorkflowTaskQueue(hCtx, request)
+	h.logger.Debug("Completed PollWorkflowTaskQueue for taskQueue", tag.Value(request), tag.NewAnyTag("poll-response", response), tag.Error(err))
 	return response, err
 }
 
